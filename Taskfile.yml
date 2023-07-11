@@ -24,7 +24,7 @@ tasks:
       - go run ./cmd/db teardown
 
   db:migrations:new:
-    desc: Runs up migrations
+    desc: Creates a new migration file
     cmds:
       - echo "Creating migration files for {{.CLI_ARGS}}..."
       - migrate create -seq -ext=.sql -dir=./migrations {{.CLI_ARGS}}

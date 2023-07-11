@@ -1,7 +1,10 @@
 package data
 
 import (
+	"database/sql"
+	"errors"
 	"github.com/96malhar/greenlight/internal/validator"
+	"github.com/lib/pq"
 	"time"
 )
 
@@ -30,4 +33,91 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(len(movie.Genres) >= 1, "genres", "must contain at least 1 genre")
 	v.Check(len(movie.Genres) <= 5, "genres", "must not contain more than 5 genres")
 	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
+}
+
+// MovieStore wraps a sql.DB connection pool.
+type MovieStore struct {
+	db *sql.DB
+}
+
+// Insert adds a new record in the movies table.
+func (m MovieStore) Insert(movie *Movie) error {
+	query := `
+        INSERT INTO movies (title, year, runtime, genres) 
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, created_at, version`
+
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+	return m.db.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+}
+
+// Get fetches a record for a movie based on the id
+func (m MovieStore) Get(id int64) (*Movie, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+        SELECT id, created_at, title, year, runtime, genres, version
+        FROM movies
+        WHERE id = $1`
+
+	// Declare a Movie struct to hold the data returned by the query.
+	var movie Movie
+
+	err := m.db.QueryRow(query, id).Scan(
+		&movie.ID, &movie.CreatedAt,
+		&movie.Title, &movie.Year,
+		&movie.Runtime, pq.Array(&movie.Genres), &movie.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &movie, nil
+}
+
+// Update a specific record in the movies table.
+func (m MovieStore) Update(movie *Movie) error {
+	query := `
+        UPDATE movies 
+        SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+        WHERE id = $5
+        RETURNING version`
+
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID}
+	return m.db.QueryRow(query, args...).Scan(&movie.Version)
+}
+
+// Delete a specific record from the movies table.
+func (m MovieStore) Delete(id int64) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `
+        DELETE FROM movies
+        WHERE id = $1`
+
+	result, err := m.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
 }

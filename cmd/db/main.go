@@ -60,11 +60,11 @@ func teardown() *cobra.Command {
 			db, err := sql.Open("postgres", superUserDSN)
 			must(err)
 
-			Exec(db, fmt.Sprintf("DROP USER IF EXISTS %s", dbUser))
-			infoLog.Printf("Dropped user %s", dbUser)
-
 			Exec(db, fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
 			infoLog.Printf("Dropped database %s", dbName)
+
+			Exec(db, fmt.Sprintf("DROP USER IF EXISTS %s", dbUser))
+			infoLog.Printf("Dropped user %s", dbUser)
 		},
 	}
 	return cmd

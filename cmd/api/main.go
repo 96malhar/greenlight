@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/96malhar/greenlight/internal/data"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"log"
@@ -24,11 +25,9 @@ type config struct {
 }
 
 type application struct {
-	config    config
-	logger    *log.Logger
-	dtHandler interface {
-		Now() time.Time
-	}
+	config     config
+	logger     *log.Logger
+	modelStore data.ModelStore
 }
 
 type envelope map[string]any
@@ -56,8 +55,9 @@ func main() {
 	logger.Printf("database connection pool established")
 
 	app := &application{
-		config: cfg,
-		logger: logger,
+		config:     cfg,
+		logger:     logger,
+		modelStore: data.NewModelStore(db),
 	}
 
 	srv := &http.Server{
