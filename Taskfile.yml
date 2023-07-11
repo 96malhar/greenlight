@@ -1,0 +1,47 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  postgres:start:
+    desc: Start a Postgres server via docker compose
+    cmds:
+      - docker compose up -d
+
+  postgres:stop:
+    desc: Stops Postgres server via docker compose
+    cmds:
+      - docker compose down
+
+  db:setup:
+    desc: Setup the database and the database user used by the greenlight app
+    cmds:
+      - go run ./cmd/db setup
+
+  db:teardown:
+    desc: Teardown the database and the database user used by the greenlight app
+    cmds:
+      - go run ./cmd/db teardown
+
+  db:migrations:new:
+    desc: Runs up migrations
+    cmds:
+      - echo "Creating migration files for {{.CLI_ARGS}}..."
+      - migrate create -seq -ext=.sql -dir=./migrations {{.CLI_ARGS}}
+
+  db:migrations:up:
+    desc: Runs up migrations
+    cmds:
+     - echo "Running up migrations..."
+     - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} up
+
+  db:migrations:down:
+    desc: Runs down migrations
+    cmds:
+      - echo "Running down migrations..."
+      - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} down
+
+  run:api:
+    desc: Start the Greenlight API server
+    cmds:
+      - go run ./cmd/api
