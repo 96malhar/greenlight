@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/96malhar/greenlight/internal/validator"
@@ -48,7 +49,11 @@ func (m MovieStore) Insert(movie *Movie) error {
         RETURNING id, created_at, version`
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
-	return m.db.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.db.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 // Get fetches a record for a movie based on the id
@@ -62,10 +67,12 @@ func (m MovieStore) Get(id int64) (*Movie, error) {
         FROM movies
         WHERE id = $1`
 
-	// Declare a Movie struct to hold the data returned by the query.
 	var movie Movie
 
-	err := m.db.QueryRow(query, id).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.db.QueryRowContext(ctx, query, id).Scan(
 		&movie.ID, &movie.CreatedAt,
 		&movie.Title, &movie.Year,
 		&movie.Runtime, pq.Array(&movie.Genres), &movie.Version,
@@ -88,11 +95,22 @@ func (m MovieStore) Update(movie *Movie) error {
 	query := `
         UPDATE movies 
         SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
-        WHERE id = $5
+        WHERE id = $5 AND version = $6
         RETURNING version`
 
-	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID}
-	return m.db.QueryRow(query, args...).Scan(&movie.Version)
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID, movie.Version}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.db.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return ErrEditConflict
+	default:
+		return err
+	}
 }
 
 // Delete a specific record from the movies table.
@@ -105,7 +123,10 @@ func (m MovieStore) Delete(id int64) error {
         DELETE FROM movies
         WHERE id = $1`
 
-	result, err := m.db.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := m.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
