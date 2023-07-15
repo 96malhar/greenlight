@@ -45,3 +45,8 @@ tasks:
     desc: Start the Greenlight API server
     cmds:
       - go run ./cmd/api
+
+  run:test:
+    desc: Run all tests
+    cmds:
+      - go test -json -v --coverprofile=coverage.out ./... 2>&1 | gotestfmt -hide "successful-tests, empty-packages"
