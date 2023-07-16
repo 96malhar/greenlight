@@ -109,7 +109,7 @@ func TestEditConflictResponse(t *testing.T) {
 }
 
 func arrangeErrorTest(t *testing.T) (*application, *httptest.ResponseRecorder, *http.Request) {
-	app := newTestApplication(t, nil)
+	app := newTestApplication(nil)
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 

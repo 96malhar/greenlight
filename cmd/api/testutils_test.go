@@ -21,6 +21,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type healthCheckResponse struct {
+	Status     string            `json:"status"`
+	SystemInfo map[string]string `json:"system_info"`
+}
+
 type movie struct {
 	ID      int      `json:"id"`
 	Title   string   `json:"title"`
@@ -43,23 +48,25 @@ type validationErrorResponse struct {
 }
 
 type testServer struct {
-	*httptest.Server
+	router http.Handler
 }
 
-func newTestServer(h http.Handler) *testServer {
-	ts := httptest.NewServer(h)
-	return &testServer{ts}
+func newTestServer(router http.Handler) *testServer {
+	return &testServer{router}
 }
 
-func (ts *testServer) do(method, urlPath, body string, header http.Header) (*http.Response, error) {
-	req, err := http.NewRequest(method, ts.URL+urlPath, strings.NewReader(body))
+func (ts *testServer) executeRequest(method, urlPath, body string, header http.Header) (*http.Response, error) {
+	req, err := http.NewRequest(method, urlPath, strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	if header != nil {
 		req.Header = header
 	}
-	return ts.Client().Do(req)
+
+	rr := httptest.NewRecorder()
+	ts.router.ServeHTTP(rr, req)
+	return rr.Result(), nil
 }
 
 func newTestDB(t *testing.T) (*sql.DB, func()) {
@@ -101,7 +108,7 @@ func dropDB(t *testing.T, dbName string) {
 	t.Logf("Dropped database %s", dbName)
 }
 
-func newTestApplication(t *testing.T, db *sql.DB) *application {
+func newTestApplication(db *sql.DB) *application {
 	return &application{
 		logger:     log.New(os.Stdout, "", log.Ldate|log.Ltime),
 		config:     config{env: "development"},

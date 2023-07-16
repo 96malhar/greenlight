@@ -6,11 +6,6 @@ import (
 )
 
 func TestHealthcheckHandler(t *testing.T) {
-	type healthCheckResponse struct {
-		Status     string            `json:"status"`
-		SystemInfo map[string]string `json:"system_info"`
-	}
-
 	want := healthCheckResponse{
 		Status: "available",
 		SystemInfo: map[string]string{
@@ -37,6 +32,6 @@ func TestHealthcheckHandler(t *testing.T) {
 		wantResponseStatusCode: http.StatusMethodNotAllowed,
 	}
 
-	testHandler(t, newTestApplication(t, nil), validResponseTC)
-	testHandler(t, newTestApplication(t, nil), methodNotAllowedTC)
+	testHandler(t, newTestApplication(nil), validResponseTC)
+	testHandler(t, newTestApplication(nil), methodNotAllowedTC)
 }

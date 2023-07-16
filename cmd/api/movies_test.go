@@ -69,7 +69,7 @@ func TestCreateMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(t, db), testcases...)
+	testHandler(t, newTestApplication(db), testcases...)
 }
 
 func TestShowMovieHandler(t *testing.T) {
@@ -125,7 +125,7 @@ func TestShowMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(t, db), testcases...)
+	testHandler(t, newTestApplication(db), testcases...)
 }
 
 func TestDeleteMovieHandler(t *testing.T) {
@@ -170,7 +170,7 @@ func TestDeleteMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(t, db), testcases...)
+	testHandler(t, newTestApplication(db), testcases...)
 }
 
 func TestUpdateMovieHandler(t *testing.T) {
@@ -236,5 +236,5 @@ func TestUpdateMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(t, db), testcases...)
+	testHandler(t, newTestApplication(db), testcases...)
 }

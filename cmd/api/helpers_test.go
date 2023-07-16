@@ -29,7 +29,7 @@ func TestReadJSON_Successful(t *testing.T) {
 		ID: 1, Title: "Die Hard", Year: 1988, Runtime: "207 mins",
 		Genres: []string{"Action", "Thriller"}, Version: 1,
 	}
-	app := newTestApplication(t, nil)
+	app := newTestApplication(nil)
 	app.readJSON(rr, req, &dst)
 
 	assert.Equal(t, want, dst)
@@ -76,13 +76,12 @@ func TestReadJSON_Unsuccessful(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			app := newTestApplication(t, nil)
+			app := newTestApplication(nil)
 			rr := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/", strings.NewReader(tc.jsonBody))
 			err := app.readJSON(rr, req, tc.dst)
 
 			assert.EqualError(t, err, tc.errMsg)
 		})
-
 	}
 }

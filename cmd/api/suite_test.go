@@ -25,7 +25,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := ts.do(tc.requestMethodType, tc.requestUrlPath, tc.requestBody, tc.requestHeader)
+			res, err := ts.executeRequest(tc.requestMethodType, tc.requestUrlPath, tc.requestBody, tc.requestHeader)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantResponseStatusCode, res.StatusCode, "response status codes do not match")
