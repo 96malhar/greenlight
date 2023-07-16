@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/96malhar/greenlight/internal/data"
 	"net/http"
 	"testing"
 )
@@ -12,29 +11,21 @@ func TestCreateMovieHandler(t *testing.T) {
 		dbCleanup()
 	})
 
-	type validMovieResponse struct {
-		Movie data.Movie `json:"movie"`
-	}
-
-	type validationErrorResponse struct {
-		Error map[string]string `json:"error"`
-	}
-
 	testcases := []handlerTestcase{
 		{
 			name:                   "Valid movie",
 			requestUrlPath:         "/v1/movies",
 			requestMethodType:      http.MethodPost,
 			requestBody:            `{"title":"Die Hard","year":1988,"runtime":"207 mins","genres":["Action", "Thriller"]}`,
-			responseDst:            &validMovieResponse{},
+			responseDst:            &movieResponse{},
 			wantResponseStatusCode: http.StatusCreated,
 			wantResponseHeader: map[string]string{
 				"Content-Type": "application/json",
 				"Location":     "/v1/movies/1",
 			},
-			wantResponse: &validMovieResponse{
-				Movie: data.Movie{
-					ID: 1, Title: "Die Hard", Year: 1988, Runtime: 207,
+			wantResponse: &movieResponse{
+				Movie: movie{
+					ID: 1, Title: "Die Hard", Year: 1988, Runtime: "207 mins",
 					Genres: []string{"Action", "Thriller"}, Version: 1,
 				},
 			},
@@ -89,20 +80,16 @@ func TestShowMovieHandler(t *testing.T) {
 
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 
-	type showMovieResponse struct {
-		Movie data.Movie `json:"movie"`
-	}
-
 	testcases := []handlerTestcase{
 		{
 			name:                   "Valid ID",
 			requestUrlPath:         "/v1/movies/1",
 			requestMethodType:      http.MethodGet,
-			responseDst:            &showMovieResponse{},
+			responseDst:            &movieResponse{},
 			wantResponseStatusCode: http.StatusOK,
-			wantResponse: &showMovieResponse{
-				Movie: data.Movie{
-					ID: 1, Title: "Die Hard", Year: 1988, Runtime: 207,
+			wantResponse: &movieResponse{
+				Movie: movie{
+					ID: 1, Title: "Die Hard", Year: 1988, Runtime: "207 mins",
 					Genres: []string{"Action", "Thriller"}, Version: 1,
 				},
 			},
@@ -169,6 +156,82 @@ func TestDeleteMovieHandler(t *testing.T) {
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse: &map[string]string{
 				"error": "the requested resource could not be found",
+			},
+		},
+		{
+			name:                   "Invalid ID",
+			requestUrlPath:         "/v1/movies/1ds",
+			requestMethodType:      http.MethodDelete,
+			responseDst:            &map[string]string{},
+			wantResponseStatusCode: http.StatusNotFound,
+			wantResponse: &map[string]string{
+				"error": "the requested resource could not be found",
+			},
+		},
+	}
+
+	testHandler(t, newTestApplication(t, db), testcases...)
+}
+
+func TestUpdateMovieHandler(t *testing.T) {
+	db, dbCleanup := newTestDB(t)
+	t.Cleanup(func() {
+		dbCleanup()
+	})
+
+	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
+
+	testcases := []handlerTestcase{
+		{
+			name:                   "Valid update",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodPatch,
+			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
+			responseDst:            &movieResponse{},
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: &movieResponse{
+				Movie: movie{
+					ID: 1, Title: "Die Hard", Year: 1997, Runtime: "207 mins",
+					Genres: []string{"Romance"}, Version: 2,
+				},
+			},
+			wantResponseHeader: map[string]string{
+				"Content-Type": "application/json",
+			},
+		},
+		{
+			name:                   "ID does not exist",
+			requestUrlPath:         "/v1/movies/5",
+			requestMethodType:      http.MethodPatch,
+			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
+			responseDst:            &map[string]string{},
+			wantResponseStatusCode: http.StatusNotFound,
+			wantResponse: &map[string]string{
+				"error": "the requested resource could not be found",
+			},
+		},
+		{
+			name:                   "Badly formed JSON request",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodPatch,
+			requestBody:            `{"genres": ["Romance"], "year"- 1997}`,
+			responseDst:            &map[string]string{},
+			wantResponseStatusCode: http.StatusBadRequest,
+			wantResponse: &map[string]string{
+				"error": "body contains badly-formed JSON (at character 31)",
+			},
+		},
+		{
+			name:                   "Validation error",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodPatch,
+			requestBody:            `{"genres":["Romance"], "year":1997, "runtime":"207 mins", "title":""}`,
+			responseDst:            &validationErrorResponse{},
+			wantResponseStatusCode: http.StatusUnprocessableEntity,
+			wantResponse: &validationErrorResponse{
+				Error: map[string]string{
+					"title": "must be provided",
+				},
 			},
 		},
 	}

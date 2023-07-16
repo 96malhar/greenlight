@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lib/pq"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,27 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+type movie struct {
+	ID      int      `json:"id"`
+	Title   string   `json:"title"`
+	Year    int      `json:"year"`
+	Runtime string   `json:"runtime"`
+	Genres  []string `json:"genres"`
+	Version int      `json:"version"`
+}
+
+type movieResponse struct {
+	Movie movie `json:"movie"`
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+type validationErrorResponse struct {
+	Error map[string]string `json:"error"`
+}
 
 type testServer struct {
 	*httptest.Server
@@ -87,8 +109,8 @@ func newTestApplication(t *testing.T, db *sql.DB) *application {
 	}
 }
 
-func readJsonResponse(t *testing.T, res *http.Response, dst any) {
-	dec := json.NewDecoder(res.Body)
+func readJsonResponse(t *testing.T, body io.Reader, dst any) {
+	dec := json.NewDecoder(body)
 	err := dec.Decode(dst)
 	require.NoError(t, err)
 }

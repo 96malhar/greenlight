@@ -31,7 +31,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 			assert.Equal(t, tc.wantResponseStatusCode, res.StatusCode, "response status codes do not match")
 
 			if tc.wantResponse != nil {
-				readJsonResponse(t, res, tc.responseDst)
+				readJsonResponse(t, res.Body, tc.responseDst)
 				assert.Equal(t, tc.wantResponse, tc.responseDst)
 			}
 
