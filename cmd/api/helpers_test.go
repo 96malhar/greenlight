@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -84,4 +86,31 @@ func TestReadJSON_Unsuccessful(t *testing.T) {
 			assert.EqualError(t, err, tc.errMsg)
 		})
 	}
+}
+
+func TestWriteJSON(t *testing.T) {
+	m := movie{
+		ID: 1, Title: "Die Hard", Year: 1988, Runtime: "207 mins",
+		Genres: []string{"Action", "Thriller"}, Version: 1,
+	}
+
+	app := newTestApplication(nil)
+	headers := make(http.Header)
+	headers.Set("Cache-Control", "No-Cache")
+	rr := httptest.NewRecorder()
+
+	err := app.writeJSON(rr, http.StatusCreated, envelope{"movie": m}, headers)
+	assert.NoError(t, err)
+
+	res := rr.Result()
+	defer res.Body.Close()
+	resBody, err := io.ReadAll(res.Body)
+	resBody = bytes.TrimSpace(resBody)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, res.StatusCode)
+
+	wantBody := `{"movie":{"id":1,"title":"Die Hard","year":1988,"runtime":"207 mins","genres":["Action","Thriller"],"version":1}}`
+	assert.Equal(t, wantBody, string(resBody))
+	assert.Equal(t, "No-Cache", res.Header.Get("Cache-Control"))
 }
