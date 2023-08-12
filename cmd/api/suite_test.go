@@ -24,8 +24,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			// check tc.wantResponseHeader is not of pointer type
-			if reflect.TypeOf(tc.wantResponseHeader).Kind() == reflect.Ptr {
+			if tc.wantResponse != nil && reflect.TypeOf(tc.wantResponse).Kind() == reflect.Ptr {
 				t.Fatal("wantResponseHeader should not be of pointer type")
 			}
 
