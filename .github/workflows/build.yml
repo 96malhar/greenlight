@@ -31,6 +31,12 @@ jobs:
       - name: Setup gotestfmt
         uses: gotesttools/gotestfmt-action@v2
 
+      - name: Install golang-migrate
+        run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.16.2
+
+      - name: Run Smoke Test
+        run: task run:smoketest
+
       - name: Test
         run: task run:test
 
@@ -41,7 +47,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:15-alpine
         env:
           POSTGRES_PASSWORD: postgres
         options: >-

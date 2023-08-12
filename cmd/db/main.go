@@ -45,6 +45,9 @@ func setupDB() *cobra.Command {
 			Exec(db, fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", dbUser, dbPassword))
 			infoLog.Printf("Created user %s", dbUser)
 
+			Exec(db, fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", dbName, dbUser))
+			infoLog.Printf("Gave ownership of database to %s user", dbUser)
+
 			Exec(db, "CREATE EXTENSION IF NOT EXISTS citext")
 			infoLog.Printf("Created extension citext")
 		},
