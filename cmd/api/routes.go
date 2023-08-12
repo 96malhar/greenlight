@@ -11,6 +11,7 @@ func (app *application) routes() *chi.Mux {
 	r.MethodNotAllowed(app.methodNotAllowedResponse)
 
 	r.Get("/v1/healthcheck", app.healthcheckHandler)
+	r.Get("/v1/movies", app.listMoviesHandler)
 	r.Post("/v1/movies", app.createMovieHandler)
 	r.Get("/v1/movies/{id}", app.showMovieHandler)
 	r.Patch("/v1/movies/{id}", app.updateMovieHandler)

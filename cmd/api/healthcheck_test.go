@@ -21,8 +21,7 @@ func TestHealthcheckHandler(t *testing.T) {
 		requestMethodType:      http.MethodGet,
 		requestUrlPath:         requestUrlPath,
 		wantResponseStatusCode: http.StatusOK,
-		responseDst:            &healthCheckResponse{},
-		wantResponse:           &want,
+		wantResponse:           want,
 	}
 
 	methodNotAllowedTC := handlerTestcase{

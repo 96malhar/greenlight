@@ -39,6 +39,10 @@ type movieResponse struct {
 	Movie movie `json:"movie"`
 }
 
+type listMovieResponse struct {
+	Movies []movie `json:"movies"`
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }
