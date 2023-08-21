@@ -1,4 +1,4 @@
-name: Build
+name: CI
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   run-tests:
-    name: Test
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
