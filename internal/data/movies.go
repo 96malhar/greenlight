@@ -143,9 +143,8 @@ func (m MovieStore) Delete(id int64) error {
 	return nil
 }
 
-// GetAll returns a slice of movies. Although we're not
-// using them right now, we've set this up to accept the various filter parameters as
-// arguments.
+// GetAll returns all movies from the movies table. The title and genres parameters act as filters.
+// If these string parameters are provided then the results will only include movies that match them.
 func (m MovieStore) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
 	// Update the SQL query to include the filter conditions.
 	query := `

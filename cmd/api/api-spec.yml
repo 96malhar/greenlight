@@ -1,0 +1,117 @@
+openapi: 3.0.0
+info:
+  title: Greenlight API
+  version: 1.0.0
+  description: An API for managing movie metadata.
+
+paths:
+  /v1/healthcheck:
+    get:
+      description: Get the health of the application.
+      responses:
+        200:
+          description: The application is healthy.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HealthcheckResponse"
+              example:
+                status: available
+                system_info:
+                  environment: development
+                  version: 1.0.0
+
+  /v1/movies:
+    post:
+      description: Create a new movie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMovieRequest"
+            example:
+              title: The Godfather
+              year: 1972
+              runtime: 175 mins
+              genres: [ Crime, Drama ]
+
+      responses:
+        201:
+          description: The movie was created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieResponse"
+              example:
+                id: 1
+                title: The Godfather
+                year: 1972
+                runtime: 175 mins
+                genres: [ Crime, Drama ]
+                version: 1
+        400:
+          description: The request was invalid.
+        401:
+          description: The user is not authorized to create movies.
+        500:
+          description: An internal error occurred.
+
+components:
+  schemas:
+    HealthcheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        system_info:
+          type: object
+          properties:
+            environment:
+              type: string
+            version:
+              type: string
+
+    CreateMovieRequest:
+      type: object
+      required: [ title, year, runtime, genres ]
+      properties:
+        title:
+          type: string
+          description: The title of the movie.
+        year:
+          type: integer
+          description: The year the movie was released.
+        runtime:
+          type: string
+          description: The runtime of the movie in minutes.
+        genres:
+          type: array
+          items:
+            type: string
+          description: The genres of the movie.
+
+    MovieResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The ID of the movie.
+          readOnly: true
+        title:
+          type: string
+          description: The title of the movie.
+        year:
+          type: integer
+          description: The year the movie was released.
+        runtime:
+          type: string
+          description: The runtime of the movie in minutes Example.
+        genres:
+          type: array
+          items:
+            type: string
+          description: The genres of the movie.
+        version:
+          type: integer
+          description: The version of the movie.
