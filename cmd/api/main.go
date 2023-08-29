@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/96malhar/greenlight/internal/data"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
@@ -34,10 +33,6 @@ type envelope map[string]any
 
 func main() {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
-
-	if err := godotenv.Load(); err != nil {
-		logger.Print("Did not load any environment variables from a .env file")
-	}
 
 	var cfg config
 

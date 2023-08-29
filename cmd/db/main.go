@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/spf13/cobra"
 	"log"
@@ -17,7 +16,6 @@ var infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 var superUserDSN = "postgresql://postgres:postgres@localhost:5432/?sslmode=disable"
 
 func init() {
-	must(godotenv.Load())
 	dbName = os.Getenv("DB_NAME")
 	dbUser = os.Getenv("DB_USER")
 	dbPassword = os.Getenv("DB_PASSWORD")

@@ -48,10 +48,15 @@ tasks:
 
   run:smoketest:
     desc: Run the smoke test
+    env:
+      DB_USER: testuser
+      DB_PASSWORD: pa$$word
+      DB_NAME: testdb
+      GREENLIGHT_DB_DSN: postgresql://testuser:pa$$word@localhost:5432/testdb?sslmode=disable
     cmds:
-      - defer: {task: db:teardown}
-      - task: db:setup
-      - task: db:migrations:up
+      - defer: go run ./cmd/db teardown
+      - go run ./cmd/db setup
+      - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
       - ./smoke_test.sh
 
   run:test:

@@ -10,7 +10,7 @@ import (
 )
 
 func TestServerErrorResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 
 	app.serverErrorResponse(rr, req, errors.New("unexpected database error"))
 
@@ -26,7 +26,7 @@ func TestServerErrorResponse(t *testing.T) {
 }
 
 func TestNotFoundResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 
 	app.notFoundResponse(rr, req)
 
@@ -42,7 +42,7 @@ func TestNotFoundResponse(t *testing.T) {
 }
 
 func TestBadRequestResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 
 	app.badRequestResponse(rr, req, errors.New("this is an unauthorized request"))
 
@@ -58,7 +58,7 @@ func TestBadRequestResponse(t *testing.T) {
 }
 
 func TestMethodNotAllowedResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 
 	app.methodNotAllowedResponse(rr, req)
 
@@ -74,7 +74,7 @@ func TestMethodNotAllowedResponse(t *testing.T) {
 }
 
 func TestFailedValidationResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 	validationErrors := map[string]string{
 		"genres": "must be unique",
 		"title":  "cannot be empty",
@@ -93,7 +93,7 @@ func TestFailedValidationResponse(t *testing.T) {
 }
 
 func TestEditConflictResponse(t *testing.T) {
-	app, rr, req := arrangeErrorTest(t)
+	app, rr, req := arrangeErrorTest()
 
 	app.editConflictResponse(rr, req)
 
@@ -108,7 +108,7 @@ func TestEditConflictResponse(t *testing.T) {
 	assert.Equal(t, wantResponse, gotResponse)
 }
 
-func arrangeErrorTest(t *testing.T) (*application, *httptest.ResponseRecorder, *http.Request) {
+func arrangeErrorTest() (*application, *httptest.ResponseRecorder, *http.Request) {
 	app := newTestApplication(nil)
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
