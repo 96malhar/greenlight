@@ -7,6 +7,7 @@ import (
 	"github.com/lib/pq"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -43,8 +44,17 @@ type movieResponse struct {
 	Movie movie `json:"movie"`
 }
 
+type PaginationMetadata struct {
+	CurrentPage  int `json:"current_page"`
+	PageSize     int `json:"page_size"`
+	TotalRecords int `json:"total_records"`
+	LastPage     int `json:"last_page"`
+	FirstPage    int `json:"first_page"`
+}
+
 type listMovieResponse struct {
-	Movies []movie `json:"movies"`
+	Movies             []movie            `json:"movies"`
+	PaginationMetadata PaginationMetadata `json:"metadata"`
 }
 
 type errorResponse struct {
@@ -126,6 +136,7 @@ func newTestApplication(db *sql.DB) *application {
 
 func readJsonResponse(t *testing.T, body io.Reader, dst any) {
 	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
 	err := dec.Decode(dst)
 	require.NoError(t, err)
 }
@@ -151,4 +162,14 @@ func insertMovie(t *testing.T, db *sql.DB, title string, year string, runtime in
 
 	_, err := db.Exec(query, title, year, runtime, pq.Array(genres))
 	require.NoError(t, err, "Failed to insert movie in the database")
+}
+
+func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMetadata {
+	return PaginationMetadata{
+		CurrentPage:  currentPage,
+		PageSize:     pageSize,
+		TotalRecords: totalRecords,
+		LastPage:     int(math.Ceil(float64(totalRecords) / float64(pageSize))),
+		FirstPage:    1,
+	}
 }

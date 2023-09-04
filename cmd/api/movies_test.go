@@ -232,7 +232,8 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{dieHard, titanic, batman},
+				Movies:             []movie{dieHard, titanic, batman},
+				PaginationMetadata: newPaginationMetadata(1, 20, 3),
 			},
 		},
 		{
@@ -241,7 +242,8 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{titanic, batman, dieHard},
+				Movies:             []movie{titanic, batman, dieHard},
+				PaginationMetadata: newPaginationMetadata(1, 20, 3),
 			},
 		},
 		{
@@ -259,7 +261,8 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{dieHard, batman},
+				Movies:             []movie{dieHard, batman},
+				PaginationMetadata: newPaginationMetadata(1, 20, 2),
 			},
 		},
 		{
@@ -268,7 +271,8 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{dieHard},
+				Movies:             []movie{dieHard},
+				PaginationMetadata: newPaginationMetadata(1, 20, 1),
 			},
 		},
 		{
@@ -277,7 +281,8 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{titanic},
+				Movies:             []movie{titanic},
+				PaginationMetadata: newPaginationMetadata(1, 20, 1),
 			},
 		},
 		{
@@ -286,7 +291,38 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{dieHard},
+				Movies:             []movie{dieHard},
+				PaginationMetadata: newPaginationMetadata(1, 20, 1),
+			},
+		},
+		{
+			name:                   "page=1&page_size=2",
+			requestUrlPath:         "/v1/movies?page=1&page_size=2",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies:             []movie{dieHard, titanic},
+				PaginationMetadata: newPaginationMetadata(1, 2, 3),
+			},
+		},
+		{
+			name:                   "page=2&page_size=2",
+			requestUrlPath:         "/v1/movies?page=2&page_size=2",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies:             []movie{batman},
+				PaginationMetadata: newPaginationMetadata(2, 2, 3),
+			},
+		},
+		{
+			name:                   "page=3&page_size=2",
+			requestUrlPath:         "/v1/movies?page=3&page_size=2",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies:             []movie{},
+				PaginationMetadata: PaginationMetadata{},
 			},
 		},
 		{
@@ -295,7 +331,26 @@ func TestListMoviesHandler(t *testing.T) {
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: []movie{},
+				Movies:             []movie{},
+				PaginationMetadata: PaginationMetadata{},
+			},
+		},
+		{
+			name:                   "Non-numeric page",
+			requestUrlPath:         "/v1/movies?page=abc",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusUnprocessableEntity,
+			wantResponse: map[string]map[string]string{
+				"error": {"page": "must be an integer value"},
+			},
+		},
+		{
+			name:                   "Out-of-bounds page_size",
+			requestUrlPath:         "/v1/movies?page_size=1000",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusUnprocessableEntity,
+			wantResponse: map[string]map[string]string{
+				"error": {"page_size": "must be a maximum of 100"},
 			},
 		},
 	}
