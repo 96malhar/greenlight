@@ -21,6 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var notFoundResponse = map[string]string{
+	"error": "the requested resource could not be found",
+}
+
 type healthCheckResponse struct {
 	Status     string            `json:"status"`
 	SystemInfo map[string]string `json:"system_info"`

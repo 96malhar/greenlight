@@ -32,6 +32,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantResponseStatusCode, res.StatusCode, "response status codes do not match")
+			assert.Equal(t, res.Header.Get("Content-Type"), "application/json", "response content type is not application/json")
 
 			if tc.wantResponse != nil {
 				// reflect.New() returns a pointer to the type

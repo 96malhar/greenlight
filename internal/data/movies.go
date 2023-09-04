@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/96malhar/greenlight/internal/validator"
 	"github.com/lib/pq"
 	"time"
@@ -146,13 +147,12 @@ func (m MovieStore) Delete(id int64) error {
 // GetAll returns all movies from the movies table. The title and genres parameters act as filters.
 // If these string parameters are provided then the results will only include movies that match them.
 func (m MovieStore) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
-	// Update the SQL query to include the filter conditions.
-	query := `
+	query := fmt.Sprintf(`
         SELECT id, created_at, title, year, runtime, genres, version
         FROM movies
-        WHERE (LOWER(title) = LOWER($1) OR $1 = '')
-        AND (genres @> $2 OR $2 = '{}') 
-        ORDER BY id`
+        WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '') 
+        AND (genres @> $2 OR $2 = '{}')     
+        ORDER BY %s %s, id ASC`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -164,7 +164,7 @@ func (m MovieStore) GetAll(title string, genres []string, filters Filters) ([]*M
 
 	defer rows.Close()
 
-	var movies []*Movie
+	movies := make([]*Movie, 0)
 	for rows.Next() {
 		var movie Movie
 		err := rows.Scan(

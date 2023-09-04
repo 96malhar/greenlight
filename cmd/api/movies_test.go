@@ -19,8 +19,7 @@ func TestCreateMovieHandler(t *testing.T) {
 			requestBody:            `{"title":"Die Hard","year":1988,"runtime":"207 mins","genres":["Action", "Thriller"]}`,
 			wantResponseStatusCode: http.StatusCreated,
 			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-				"Location":     "/v1/movies/1",
+				"Location": "/v1/movies/1",
 			},
 			wantResponse: movieResponse{
 				Movie: movie{
@@ -88,33 +87,20 @@ func TestShowMovieHandler(t *testing.T) {
 					Genres: []string{"Action", "Thriller"}, Version: 1,
 				},
 			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-			},
 		},
 		{
 			name:                   "Resource not found",
 			requestUrlPath:         "/v1/movies/2",
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusNotFound,
-			wantResponse: map[string]string{
-				"error": "the requested resource could not be found",
-			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-			},
+			wantResponse:           notFoundResponse,
 		},
 		{
 			name:                   "Invalid ID",
 			requestUrlPath:         "/v1/movies/asad",
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusNotFound,
-			wantResponse: map[string]string{
-				"error": "the requested resource could not be found",
-			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-			},
+			wantResponse:           notFoundResponse,
 		},
 	}
 
@@ -145,18 +131,14 @@ func TestDeleteMovieHandler(t *testing.T) {
 			requestUrlPath:         "/v1/movies/6",
 			requestMethodType:      http.MethodDelete,
 			wantResponseStatusCode: http.StatusNotFound,
-			wantResponse: map[string]string{
-				"error": "the requested resource could not be found",
-			},
+			wantResponse:           notFoundResponse,
 		},
 		{
 			name:                   "Invalid ID",
 			requestUrlPath:         "/v1/movies/1ds",
 			requestMethodType:      http.MethodDelete,
 			wantResponseStatusCode: http.StatusNotFound,
-			wantResponse: map[string]string{
-				"error": "the requested resource could not be found",
-			},
+			wantResponse:           notFoundResponse,
 		},
 	}
 
@@ -184,9 +166,6 @@ func TestUpdateMovieHandler(t *testing.T) {
 					Genres: []string{"Romance"}, Version: 2,
 				},
 			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-			},
 		},
 		{
 			name:                   "ID does not exist",
@@ -194,9 +173,7 @@ func TestUpdateMovieHandler(t *testing.T) {
 			requestMethodType:      http.MethodPatch,
 			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
 			wantResponseStatusCode: http.StatusNotFound,
-			wantResponse: map[string]string{
-				"error": "the requested resource could not be found",
-			},
+			wantResponse:           notFoundResponse,
 		},
 		{
 			name:                   "Badly formed JSON request",
@@ -250,15 +227,39 @@ func TestListMoviesHandler(t *testing.T) {
 
 	testcases := []handlerTestcase{
 		{
+			name:                   "No query parameters",
+			requestUrlPath:         "/v1/movies",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies: []movie{dieHard, titanic, batman},
+			},
+		},
+		{
+			name:                   "sort=-year",
+			requestUrlPath:         "/v1/movies?sort=-year",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies: []movie{titanic, batman, dieHard},
+			},
+		},
+		{
+			name:                   "Invalid sort key",
+			requestUrlPath:         "/v1/movies?sort=xyz",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusUnprocessableEntity,
+			wantResponse: map[string]map[string]string{
+				"error": {"sort": "invalid sort value"},
+			},
+		},
+		{
 			name:                   "genres=Action",
 			requestUrlPath:         "/v1/movies?genres=Action",
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies: []movie{dieHard, batman},
-			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
 			},
 		},
 		{
@@ -269,9 +270,6 @@ func TestListMoviesHandler(t *testing.T) {
 			wantResponse: listMovieResponse{
 				Movies: []movie{dieHard},
 			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
-			},
 		},
 		{
 			name:                   "title=Titanic genres=Romance",
@@ -281,20 +279,23 @@ func TestListMoviesHandler(t *testing.T) {
 			wantResponse: listMovieResponse{
 				Movies: []movie{titanic},
 			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
+		},
+		{
+			name:                   "title=die",
+			requestUrlPath:         "/v1/movies?title=die",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: listMovieResponse{
+				Movies: []movie{dieHard},
 			},
 		},
 		{
-			name:                   "title=Spiderman",
+			name:                   "Empty movie list",
 			requestUrlPath:         "/v1/movies?title=Spiderman",
 			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
-				Movies: nil,
-			},
-			wantResponseHeader: map[string]string{
-				"Content-Type": "application/json",
+				Movies: []movie{},
 			},
 		},
 	}
