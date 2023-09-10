@@ -1,17 +1,27 @@
 version: '3'
 
-dotenv: ['.env']
+dotenv: [env/.dev.env]
 
 tasks:
-  postgres:start:
+  docker:postgres:start:
     desc: Start a Postgres server via docker compose
     cmds:
-      - docker compose up -d
+      - docker compose up -d db
 
-  postgres:stop:
+  docker:postgres:stop:
     desc: Stops Postgres server via docker compose
     cmds:
-      - docker compose down
+      - docker compose stop db
+
+  docker:server:start:
+    desc: Start the Greenlight API server via docker compose
+    cmds:
+      - docker compose up -d --build api
+
+  docker:server:stop:
+    desc: Stop the Greenlight API server via docker compose
+    cmds:
+      - docker compose stop api
 
   db:setup:
     desc: Setup the database and the database user used by the greenlight app
@@ -41,22 +51,21 @@ tasks:
       - echo "Running down migrations..."
       - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} down
 
-  run:api:
+  server:start:
     desc: Start the Greenlight API server
     cmds:
       - go run ./cmd/api
 
-  run:smoketest:
+  smoketest:
     desc: Run the smoke test
-    dotenv:
-      - .smoketest.env
+    dotenv: [env/.smoketest.env]
     cmds:
       - defer: go run ./cmd/db teardown
       - go run ./cmd/db setup
       - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
       - ./smoke_test.sh
 
-  run:test:
+  test:
     desc: Run all tests
     cmds:
       - go test -json -v --coverprofile=coverage.out ./... 2>&1 | gotestfmt -hide "successful-tests, empty-packages"

@@ -8,5 +8,12 @@ services:
     volumes:
       - postgres-db:/var/lib/postgresql/data
 
+  api:
+    build: .
+    ports:
+      - "4000:4000"
+    env_file:
+      - env/.docker.dev.env
+
 volumes:
   postgres-db:

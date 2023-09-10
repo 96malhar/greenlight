@@ -44,8 +44,9 @@ func main() {
 	db, err := openDB(cfg)
 	if err != nil {
 		logger.Error(err.Error())
+		logger.Error("cannot connect to database", "dsn", cfg.db.dsn)
+		os.Exit(1)
 	}
-	logger.Info("database connection pool established")
 	defer db.Close()
 
 	app := &application{
