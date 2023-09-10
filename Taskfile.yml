@@ -48,11 +48,8 @@ tasks:
 
   run:smoketest:
     desc: Run the smoke test
-    env:
-      DB_USER: testuser
-      DB_PASSWORD: pa$$word
-      DB_NAME: testdb
-      GREENLIGHT_DB_DSN: postgresql://testuser:pa$$word@localhost:5432/testdb?sslmode=disable
+    dotenv:
+      - .smoketest.env
     cmds:
       - defer: go run ./cmd/db teardown
       - go run ./cmd/db setup

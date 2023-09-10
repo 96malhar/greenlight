@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/96malhar/greenlight/internal/data"
 	_ "github.com/lib/pq"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -25,14 +25,14 @@ type config struct {
 
 type application struct {
 	config     config
-	logger     *log.Logger
+	logger     *slog.Logger
 	modelStore data.ModelStore
 }
 
 type envelope map[string]any
 
 func main() {
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	var cfg config
 
@@ -43,11 +43,10 @@ func main() {
 
 	db, err := openDB(cfg)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err.Error())
 	}
-
+	logger.Info("database connection pool established")
 	defer db.Close()
-	logger.Printf("database connection pool established")
 
 	app := &application{
 		config:     cfg,
@@ -57,15 +56,19 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
+		ErrorLog:     slog.NewLogLogger(app.logger.Handler(), slog.LevelError),
 		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
-	logger.Printf("starting %s server on %s", cfg.env, srv.Addr)
+	logger.Info("starting server", "port", srv.Addr, "env", cfg.env)
 	err = srv.ListenAndServe()
-	logger.Fatal(err)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 }
 
 func openDB(cfg config) (*sql.DB, error) {

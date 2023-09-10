@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"github.com/lib/pq"
 	"io"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -128,7 +127,7 @@ func dropDB(t *testing.T, dbName string) {
 
 func newTestApplication(db *sql.DB) *application {
 	return &application{
-		logger:     log.New(os.Stdout, "", log.Ldate|log.Ltime),
+		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		config:     config{env: "development"},
 		modelStore: data.NewModelStore(db),
 	}
