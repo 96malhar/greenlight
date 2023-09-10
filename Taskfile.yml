@@ -16,7 +16,7 @@ tasks:
   docker:server:start:
     desc: Start the Greenlight API server via docker compose
     cmds:
-      - docker compose up -d --build api
+      - docker compose up -d api
 
   docker:server:stop:
     desc: Stop the Greenlight API server via docker compose
