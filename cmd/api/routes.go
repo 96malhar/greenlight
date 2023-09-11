@@ -9,6 +9,7 @@ func (app *application) routes() *chi.Mux {
 
 	r.NotFound(app.notFoundResponse)
 	r.MethodNotAllowed(app.methodNotAllowedResponse)
+	r.Use(app.recoverPanic, app.rateLimit)
 
 	r.Get("/v1/healthcheck", app.healthcheckHandler)
 	r.Get("/v1/movies", app.listMoviesHandler)

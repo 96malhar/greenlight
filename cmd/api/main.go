@@ -21,6 +21,22 @@ type config struct {
 	db   struct {
 		dsn string
 	}
+	limiter struct {
+		rps     float64
+		burst   int
+		enabled bool
+	}
+}
+
+func (c config) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("port", c.port),
+		slog.String("env", c.env),
+		slog.Float64("limiter-rps", c.limiter.rps),
+		slog.Int("limiter-burst", c.limiter.burst),
+		slog.Bool("limiter-enabled", c.limiter.enabled),
+		slog.String("version", version),
+	)
 }
 
 type application struct {
@@ -32,13 +48,16 @@ type application struct {
 type envelope map[string]any
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	var cfg config
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 	flag.Parse()
 
 	db, err := openDB(cfg)
@@ -64,7 +83,7 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	logger.Info("starting server", "port", srv.Addr, "env", cfg.env)
+	logger.Info("starting server", "properties", cfg)
 	err = srv.ListenAndServe()
 	if err != nil {
 		logger.Error(err.Error())
