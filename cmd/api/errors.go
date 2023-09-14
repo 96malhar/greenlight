@@ -6,7 +6,7 @@ import (
 )
 
 func (app *application) logError(r *http.Request, err error) {
-	app.logger.Error(err.Error(), "method", r.Method, "url", r.URL.String())
+	app.logger.Error(err.Error(), "method", r.Method, "url", r.URL.RequestURI())
 }
 
 // errorResponse is a generic helper for sending JSON-formatted error
@@ -15,10 +15,6 @@ func (app *application) logError(r *http.Request, err error) {
 // more flexibility over the values that we can include in the response.
 func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
 	env := envelope{"error": message}
-
-	// Write the response using the writeJSON() helper. If this happens to return an
-	// error then log it, and fall back to sending the client an empty response with a
-	// 500 Internal Server Error status code.
 	err := app.writeJSON(w, status, env, nil)
 	if err != nil {
 		app.logError(r, err)

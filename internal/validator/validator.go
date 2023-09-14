@@ -2,11 +2,12 @@ package validator
 
 import (
 	"regexp"
+	"slices"
 )
 
-// EmailRX taken from https://html.spec.whatwg.org/#valid-e-mail-address
+// EmailRX taken from https://html.spec.whatwg.org/#valid-e-mail-address. Note: if you're
 var (
-	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
 // Validator contains a map of validation errors.
@@ -39,14 +40,9 @@ func (v *Validator) Check(ok bool, key, message string) {
 	}
 }
 
-// PermittedValue returns true if a specific value is in a list.
+// PermittedValue returns true if a specific value is in a list of permitted values.
 func PermittedValue[T comparable](value T, permittedValues ...T) bool {
-	for i := range permittedValues {
-		if value == permittedValues[i] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(permittedValues, value)
 }
 
 // Matches returns true if a string value matches a specific regexp pattern.

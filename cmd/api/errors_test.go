@@ -108,6 +108,22 @@ func TestEditConflictResponse(t *testing.T) {
 	assert.Equal(t, wantResponse, gotResponse)
 }
 
+func TestRateLimitExceededResponse(t *testing.T) {
+	app, rr, req := arrangeErrorTest()
+
+	app.rateLimitExceededResponse(rr, req)
+
+	result := rr.Result()
+	var gotResponse errorResponse
+	readJsonResponse(t, result.Body, &gotResponse)
+	wantResponse := errorResponse{
+		Error: "rate limit exceeded",
+	}
+
+	assert.Equal(t, http.StatusTooManyRequests, result.StatusCode)
+	assert.Equal(t, wantResponse, gotResponse)
+}
+
 func arrangeErrorTest() (*application, *httptest.ResponseRecorder, *http.Request) {
 	app := newTestApplication(nil)
 	rr := httptest.NewRecorder()
