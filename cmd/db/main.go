@@ -5,14 +5,13 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	"github.com/spf13/cobra"
-	"log"
+	"log/slog"
 	"os"
 	"runtime/debug"
 )
 
 var dbUser, dbName, dbPassword string
-var errorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
-var infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 var superUserDSN = "postgresql://postgres:postgres@localhost:5432/?sslmode=disable"
 
 func init() {
@@ -38,16 +37,16 @@ func setupDB() *cobra.Command {
 			db, err := sql.Open("postgres", superUserDSN)
 			must(err)
 			Exec(db, fmt.Sprintf("CREATE DATABASE %s", dbName))
-			infoLog.Printf("Created database %s", dbName)
+			logger.Info("Created database", "name", dbName)
 
 			Exec(db, fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", dbUser, dbPassword))
-			infoLog.Printf("Created user %s", dbUser)
+			logger.Info("Created database user", "user", dbUser)
 
 			Exec(db, fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", dbName, dbUser))
-			infoLog.Printf("Gave ownership of database to %s user", dbUser)
+			logger.Info("Gave ownership of database", "user", dbUser)
 
 			Exec(db, "CREATE EXTENSION IF NOT EXISTS citext")
-			infoLog.Printf("Created extension citext")
+			logger.Info("Created extension citext")
 		},
 	}
 	return cmd
@@ -62,10 +61,10 @@ func teardown() *cobra.Command {
 			must(err)
 
 			Exec(db, fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
-			infoLog.Printf("Dropped database %s", dbName)
+			logger.Info("Dropped database", "name", dbName)
 
 			Exec(db, fmt.Sprintf("DROP USER IF EXISTS %s", dbUser))
-			infoLog.Printf("Dropped user %s", dbUser)
+			logger.Info("Dropped user", "name", dbUser)
 		},
 	}
 	return cmd
@@ -73,8 +72,7 @@ func teardown() *cobra.Command {
 
 func must(err error) {
 	if err != nil {
-		trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
-		errorLog.Output(2, trace)
+		logger.Error("An error occurred", "error", err.Error(), "trace", debug.Stack())
 		os.Exit(1)
 	}
 }
