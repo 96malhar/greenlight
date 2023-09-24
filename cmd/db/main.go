@@ -44,9 +44,6 @@ func setupDB() *cobra.Command {
 
 			Exec(db, fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", dbName, dbUser))
 			logger.Info("Gave ownership of database", "user", dbUser)
-
-			Exec(db, "CREATE EXTENSION IF NOT EXISTS citext")
-			logger.Info("Created extension citext")
 		},
 	}
 	return cmd
