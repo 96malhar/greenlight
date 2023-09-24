@@ -54,15 +54,14 @@ func TestRateLimit(t *testing.T) {
 			app.config.limiter.rps = tc.rateLimitRps
 			app.config.limiter.burst = tc.rateLimitBurst
 
-			ts := newTestServer(app.routes())
-
+			router := app.routes()
 			req, _ := http.NewRequest(http.MethodGet, "/v1/healthcheck", nil)
 			req.RemoteAddr = "localhost:4000"
 
 			var statusCodes []int
 			for i := 0; i < 6; i++ {
 				rr := httptest.NewRecorder()
-				ts.router.ServeHTTP(rr, req)
+				router.ServeHTTP(rr, req)
 				statusCodes = append(statusCodes, rr.Result().StatusCode)
 			}
 

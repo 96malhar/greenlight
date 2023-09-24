@@ -67,7 +67,6 @@ type PaginationMetadata struct {
 // and a page size of 5, the last page value would be math.Ceil(12/5) = 3.
 func calculatePaginationMetadata(totalRecords, page, pageSize int) PaginationMetadata {
 	if totalRecords == 0 {
-		// Note that we return an empty Metadata struct if there are no records.
 		return PaginationMetadata{}
 	}
 
