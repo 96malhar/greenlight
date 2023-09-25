@@ -58,6 +58,16 @@ func TestRegisterUserHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:                   "Bad request body",
+			requestUrlPath:         "/v1/users",
+			requestMethodType:      http.MethodPost,
+			requestBody:            `{"names":"Bob", "email":"bob@.com", "password":"secret"}`,
+			wantResponseStatusCode: http.StatusBadRequest,
+			wantResponse: errorResponse{
+				Error: "body contains unknown key \"names\"",
+			},
+		},
 	}
 
 	app := newTestApplication(db)
