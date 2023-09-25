@@ -41,6 +41,7 @@ type application struct {
 	config     config
 	logger     *slog.Logger
 	modelStore data.ModelStore
+	utcNow     func() time.Time
 }
 
 type envelope map[string]any
@@ -67,8 +68,11 @@ func main() {
 	defer db.Close()
 
 	app := &application{
-		config:     cfg,
-		logger:     logger,
+		config: cfg,
+		logger: logger,
+		utcNow: func() time.Time {
+			return time.Now().UTC()
+		},
 		modelStore: data.NewModelStore(db),
 	}
 

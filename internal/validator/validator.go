@@ -28,6 +28,9 @@ func (v *Validator) Valid() bool {
 // AddError adds an error message to the map (so long as no entry already exists for
 // the given key).
 func (v *Validator) AddError(key, message string) {
+	if v.Errors == nil {
+		v.Errors = make(map[string]string)
+	}
 	if _, exists := v.Errors[key]; !exists {
 		v.Errors[key] = message
 	}

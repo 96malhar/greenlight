@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/golang-migrate/migrate/v4"
@@ -56,6 +58,18 @@ type listMovieResponse struct {
 	PaginationMetadata PaginationMetadata `json:"metadata"`
 }
 
+type user struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Activated bool      `json:"activated"`
+}
+
+type userResponse struct {
+	User user `json:"user"`
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -90,14 +104,14 @@ func newTestDB(t *testing.T) (*sql.DB, func()) {
 	randomSuffix := strings.Split(uuid.New().String(), "-")[0]
 	testDBName := fmt.Sprintf("greenlight_test_%s", randomSuffix)
 
-	db := getDBConn(t, "postgres", "postgres", "postgres")
+	db := getRootDbConn(t)
 	_, err := db.Exec(fmt.Sprintf("CREATE DATABASE %s", testDBName))
 	require.NoErrorf(t, err, "Failed to create database %s", testDBName)
 	db.Close()
 
-	db = getDBConn(t, "postgres", "postgres", testDBName)
+	db = getDbConn(t, testDBName)
 	t.Logf("Connected to database %s", testDBName)
-	migrator := runMigrations(t, db)
+	migrator := runMigrations(t, db, testDBName)
 
 	cleanup := func() {
 		db.Close()
@@ -108,8 +122,17 @@ func newTestDB(t *testing.T) (*sql.DB, func()) {
 	return db, cleanup
 }
 
-func getDBConn(t *testing.T, user, password, dbname string) *sql.DB {
-	dsn := fmt.Sprintf("host=localhost port=5432 user=%s password=%s sslmode=disable dbname=%s", user, password, dbname)
+func getDbConn(t *testing.T, dbname string) *sql.DB {
+	dsn := fmt.Sprintf("host=localhost port=5432 user=postgres password=postgres sslmode=disable dbname=%s", dbname)
+	db, _ := sql.Open("postgres", dsn)
+	err := db.Ping()
+	require.NoErrorf(t, err, "Failed to connect to postgres with DSN = %s", dsn)
+
+	return db
+}
+
+func getRootDbConn(t *testing.T) *sql.DB {
+	dsn := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
 	db, _ := sql.Open("postgres", dsn)
 	err := db.Ping()
 	require.NoErrorf(t, err, "Failed to connect to postgres with DSN = %s", dsn)
@@ -118,7 +141,7 @@ func getDBConn(t *testing.T, user, password, dbname string) *sql.DB {
 }
 
 func dropDB(t *testing.T, dbName string) {
-	db := getDBConn(t, "postgres", "postgres", "postgres")
+	db := getRootDbConn(t)
 	defer db.Close()
 	_, err := db.Exec(fmt.Sprintf("DROP DATABASE %s", dbName))
 	require.NoErrorf(t, err, "Failed to drop database %s", dbName)
@@ -140,11 +163,11 @@ func readJsonResponse(t *testing.T, body io.Reader, dst any) {
 	require.NoError(t, err)
 }
 
-func runMigrations(t *testing.T, db *sql.DB) *migrate.Migrate {
+func runMigrations(t *testing.T, db *sql.DB, dbName string) *migrate.Migrate {
 	migrationDriver, err := postgres.WithInstance(db, &postgres.Config{})
 	require.NoError(t, err)
 
-	migrator, err := migrate.NewWithDatabaseInstance("file://../../migrations", "postgres", migrationDriver)
+	migrator, err := migrate.NewWithDatabaseInstance("file://../../migrations", dbName, migrationDriver)
 	require.NoError(t, err)
 
 	err = migrator.Up()
@@ -161,6 +184,18 @@ func insertMovie(t *testing.T, db *sql.DB, title string, year string, runtime in
 
 	_, err := db.Exec(query, title, year, runtime, pq.Array(genres))
 	require.NoError(t, err, "Failed to insert movie in the database")
+}
+
+func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string, createdAt time.Time) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	require.NoError(t, err)
+
+	query := `
+		INSERT INTO users (name, email, created_at, password_hash, activated)
+		VALUES ($1, $2, $3, $4, $5)`
+
+	_, err = db.Exec(query, name, email, createdAt, hash, false)
+	require.NoError(t, err, "Failed to insert user in the database")
 }
 
 func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMetadata {
