@@ -207,3 +207,10 @@ func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMe
 		FirstPage:    1,
 	}
 }
+
+type mockMailer struct {
+}
+
+func (m mockMailer) Send(recipient, templateFile string, data any) error {
+	return nil
+}

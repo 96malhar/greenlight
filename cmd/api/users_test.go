@@ -23,7 +23,7 @@ func TestRegisterUserHandler(t *testing.T) {
 			requestUrlPath:         "/v1/users",
 			requestMethodType:      http.MethodPost,
 			requestBody:            `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`,
-			wantResponseStatusCode: http.StatusCreated,
+			wantResponseStatusCode: http.StatusAccepted,
 			wantResponse: userResponse{
 				User: user{
 					ID: 2, Name: "Bob",
@@ -71,6 +71,7 @@ func TestRegisterUserHandler(t *testing.T) {
 	}
 
 	app := newTestApplication(db)
+	app.mailer = mockMailer{}
 	app.utcNow = func() time.Time {
 		return currTime
 	}
