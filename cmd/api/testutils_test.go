@@ -209,8 +209,10 @@ func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMe
 }
 
 type mockMailer struct {
+	SendInvoked bool
 }
 
-func (m mockMailer) Send(recipient, templateFile string, data any) error {
+func (m *mockMailer) Send(recipient, templateFile string, data any) error {
+	m.SendInvoked = true
 	return nil
 }

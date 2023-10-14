@@ -17,6 +17,7 @@ type handlerTestcase struct {
 	wantResponseStatusCode int
 	wantResponse           any
 	wantResponseHeader     map[string]string
+	additionalChecks       []func()
 }
 
 func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
@@ -47,6 +48,10 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 			for key, wantVal := range tc.wantResponseHeader {
 				gotVal := res.Header.Get(key)
 				assert.Equalf(t, wantVal, gotVal, "Header values do not match for %s", key)
+			}
+
+			for _, check := range tc.additionalChecks {
+				check()
 			}
 		})
 	}

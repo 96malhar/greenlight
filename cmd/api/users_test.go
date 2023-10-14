@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
 	"time"
 )
 
-func TestRegisterUserHandler(t *testing.T) {
+func TestRegisterUserHandler_ValidUser(t *testing.T) {
 	db, dbCleanup := newTestDB(t)
 	t.Cleanup(func() {
 		dbCleanup()
@@ -17,21 +18,55 @@ func TestRegisterUserHandler(t *testing.T) {
 	// seed users table with a user
 	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", currTime)
 
-	testcases := []handlerTestcase{
-		{
-			name:                   "Valid user",
-			requestUrlPath:         "/v1/users",
-			requestMethodType:      http.MethodPost,
-			requestBody:            `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`,
-			wantResponseStatusCode: http.StatusAccepted,
-			wantResponse: userResponse{
-				User: user{
-					ID: 2, Name: "Bob",
-					Email: "bob@gmail.com", Activated: false,
-					CreatedAt: currTime,
-				},
+	app := newTestApplication(db)
+	mailer := &mockMailer{}
+	app.mailer = mailer
+	app.utcNow = func() time.Time {
+		return currTime
+	}
+
+	checkEmailSent := func() {
+		assert.True(t, mailer.SendInvoked)
+	}
+
+	testcase := handlerTestcase{
+		name:                   "Valid user",
+		requestUrlPath:         "/v1/users",
+		requestMethodType:      http.MethodPost,
+		requestBody:            `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`,
+		wantResponseStatusCode: http.StatusAccepted,
+		wantResponse: userResponse{
+			User: user{
+				ID: 2, Name: "Bob",
+				Email: "bob@gmail.com", Activated: false,
+				CreatedAt: currTime,
 			},
 		},
+		additionalChecks: []func(){
+			checkEmailSent,
+		},
+	}
+
+	testHandler(t, app, testcase)
+}
+
+func TestRegisterUserHandler_InvalidUser(t *testing.T) {
+	db, dbCleanup := newTestDB(t)
+	t.Cleanup(func() {
+		dbCleanup()
+	})
+
+	currTime := time.Date(2021, time.January, 5, 15, 42, 58, 0, time.UTC)
+
+	// seed users table with a user
+	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", currTime)
+
+	app := newTestApplication(db)
+	app.utcNow = func() time.Time {
+		return currTime
+	}
+
+	testcases := []handlerTestcase{
 		{
 			name:                   "Duplicate email",
 			requestUrlPath:         "/v1/users",
@@ -70,10 +105,5 @@ func TestRegisterUserHandler(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(db)
-	app.mailer = mockMailer{}
-	app.utcNow = func() time.Time {
-		return currTime
-	}
 	testHandler(t, app, testcases...)
 }
