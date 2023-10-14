@@ -68,10 +68,8 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		mu.Lock()
 
 		if _, found := clients[ip]; !found {
-			clients[ip] = &client{limiter: rate.NewLimiter(rps, burst)}
+			clients[ip] = &client{limiter: rate.NewLimiter(rps, burst), lastSeen: time.Now()}
 		}
-
-		clients[ip].lastSeen = time.Now()
 
 		if !clients[ip].limiter.Allow() {
 			mu.Unlock()
