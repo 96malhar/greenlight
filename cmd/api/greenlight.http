@@ -27,3 +27,9 @@ POST localhost:4000/v1/users
 Content-Type: application/json
 
 {"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}
+
+### Activate a specific user
+PUT localhost:4000/v1/users/activated
+Content-Type: application/json
+
+{"token":"H2NMasdasdasnfjadhskjlfjhs"}

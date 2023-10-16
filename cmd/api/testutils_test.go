@@ -100,7 +100,7 @@ func (ts *testServer) executeRequest(method, urlPath, body string, header http.H
 	return rr.Result(), nil
 }
 
-func newTestDB(t *testing.T) (*sql.DB, func()) {
+func newTestDB(t *testing.T) *sql.DB {
 	randomSuffix := strings.Split(uuid.New().String(), "-")[0]
 	testDBName := fmt.Sprintf("greenlight_test_%s", randomSuffix)
 
@@ -113,13 +113,13 @@ func newTestDB(t *testing.T) (*sql.DB, func()) {
 	t.Logf("Connected to database %s", testDBName)
 	migrator := runMigrations(t, db, testDBName)
 
-	cleanup := func() {
+	t.Cleanup(func() {
 		db.Close()
 		migrator.Close()
 		dropDB(t, testDBName)
-	}
+	})
 
-	return db, cleanup
+	return db
 }
 
 func getDbConn(t *testing.T, dbname string) *sql.DB {
@@ -153,6 +153,9 @@ func newTestApplication(db *sql.DB) *application {
 		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		config:     config{env: "development"},
 		modelStore: data.NewModelStore(db),
+		utcNow: func() time.Time {
+			return time.Now().UTC()
+		},
 	}
 }
 
@@ -208,11 +211,15 @@ func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMe
 	}
 }
 
+// Mocks the mailer interface
 type mockMailer struct {
-	SendInvoked bool
+	SendInvoked    bool
+	TokenPlainText string
 }
 
 func (m *mockMailer) Send(recipient, templateFile string, data any) error {
 	m.SendInvoked = true
+	d := data.(map[string]any)
+	m.TokenPlainText = d["activationToken"].(string)
 	return nil
 }

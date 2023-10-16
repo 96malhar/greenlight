@@ -19,6 +19,6 @@ func (app *application) routes() *chi.Mux {
 	r.Delete("/v1/movies/{id}", app.deleteMovieHandler)
 
 	r.Post("/v1/users", app.registerUserHandler)
-
+	r.Put("/v1/users/activated", app.activateUserHandler)
 	return r
 }

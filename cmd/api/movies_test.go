@@ -6,11 +6,6 @@ import (
 )
 
 func TestCreateMovieHandler(t *testing.T) {
-	db, dbCleanup := newTestDB(t)
-	t.Cleanup(func() {
-		dbCleanup()
-	})
-
 	testcases := []handlerTestcase{
 		{
 			name:                   "Valid movie",
@@ -64,14 +59,11 @@ func TestCreateMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(db), testcases...)
+	testHandler(t, newTestApplication(newTestDB(t)), testcases...)
 }
 
 func TestShowMovieHandler(t *testing.T) {
-	db, dbCleanup := newTestDB(t)
-	t.Cleanup(func() {
-		dbCleanup()
-	})
+	db := newTestDB(t)
 
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 
@@ -108,10 +100,7 @@ func TestShowMovieHandler(t *testing.T) {
 }
 
 func TestDeleteMovieHandler(t *testing.T) {
-	db, dbCleanup := newTestDB(t)
-	t.Cleanup(func() {
-		dbCleanup()
-	})
+	db := newTestDB(t)
 
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 	insertMovie(t, db, "Titanic", "1997", 196, []string{"Romance"})
@@ -146,10 +135,7 @@ func TestDeleteMovieHandler(t *testing.T) {
 }
 
 func TestUpdateMovieHandler(t *testing.T) {
-	db, dbCleanup := newTestDB(t)
-	t.Cleanup(func() {
-		dbCleanup()
-	})
+	db := newTestDB(t)
 
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 
@@ -203,10 +189,7 @@ func TestUpdateMovieHandler(t *testing.T) {
 }
 
 func TestListMoviesHandler(t *testing.T) {
-	db, dbCleanup := newTestDB(t)
-	t.Cleanup(func() {
-		dbCleanup()
-	})
+	db := newTestDB(t)
 
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 	insertMovie(t, db, "Titanic", "1997", 167, []string{"Romance"})

@@ -17,7 +17,7 @@ type handlerTestcase struct {
 	wantResponseStatusCode int
 	wantResponse           any
 	wantResponseHeader     map[string]string
-	additionalChecks       []func()
+	additionalChecks       []func(t *testing.T)
 }
 
 func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
@@ -51,7 +51,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 			}
 
 			for _, check := range tc.additionalChecks {
-				check()
+				check(t)
 			}
 		})
 	}
