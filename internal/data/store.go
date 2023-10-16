@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"errors"
+	"time"
 )
 
 var (
@@ -24,14 +25,22 @@ type UserStoreInterface interface {
 	Update(user *User) error
 }
 
+type TokenStoreInterface interface {
+	New(userID int64, ttl time.Duration, scope string) (*Token, error)
+	Insert(token *Token) error
+	DeleteAllForUser(scope string, userID int64) error
+}
+
 type ModelStore struct {
 	Movies MovieStoreInterface
 	Users  UserStoreInterface
+	Tokens TokenStoreInterface
 }
 
 func NewModelStore(db *sql.DB) ModelStore {
 	return ModelStore{
 		Movies: MovieStore{db: db},
 		Users:  UserStore{db: db},
+		Tokens: TokenStore{db: db},
 	}
 }
