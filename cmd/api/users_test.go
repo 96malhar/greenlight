@@ -131,6 +131,16 @@ func TestActivateUserHandler_ValidRequest(t *testing.T) {
 func TestActivateUserHandler_InvalidRequest(t *testing.T) {
 	testcases := []handlerTestcase{
 		{
+			name:                   "Bad request body",
+			requestUrlPath:         "/v1/users/activated",
+			requestMethodType:      http.MethodPut,
+			requestBody:            `{"tokenText":"some-token"}`,
+			wantResponseStatusCode: http.StatusBadRequest,
+			wantResponse: errorResponse{
+				Error: "body contains unknown key \"tokenText\"",
+			},
+		},
+		{
 			name:                   "Token less that 26 bytes",
 			requestUrlPath:         "/v1/users/activated",
 			requestMethodType:      http.MethodPut,

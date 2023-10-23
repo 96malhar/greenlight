@@ -16,9 +16,7 @@ type authenticationTokenResponse struct {
 }
 
 func TestCreateAuthenticationTokenHandler_ValidCredentials(t *testing.T) {
-	db := newTestDB(t)
-	app := newTestApplication(db)
-
+	app := newTestApplication(newTestDB(t))
 	ts := newTestServer(app.routes())
 
 	// Create a new user
@@ -42,7 +40,24 @@ func TestCreateAuthenticationTokenHandler_ValidCredentials(t *testing.T) {
 }
 
 func TestCreateAuthenticationTokenHandler_InvalidCredentials(t *testing.T) {
+	app := newTestApplication(newTestDB(t))
+	ts := newTestServer(app.routes())
+
+	// Create a new user
+	_, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
+	require.NoError(t, err)
+
 	testcases := []handlerTestcase{
+		{
+			name:                   "Bad request body",
+			requestUrlPath:         "/v1/tokens/authentication",
+			requestMethodType:      http.MethodPost,
+			requestBody:            `{"emailAddress":"abc123", "password":"5ecret1234"}`,
+			wantResponseStatusCode: http.StatusBadRequest,
+			wantResponse: errorResponse{
+				Error: "body contains unknown key \"emailAddress\"",
+			},
+		},
 		{
 			name:                   "Invalid email",
 			requestUrlPath:         "/v1/tokens/authentication",
@@ -68,19 +83,26 @@ func TestCreateAuthenticationTokenHandler_InvalidCredentials(t *testing.T) {
 			},
 		},
 		{
+			name:                   "Wrong password",
+			requestUrlPath:         "/v1/tokens/authentication",
+			requestMethodType:      http.MethodPost,
+			requestBody:            `{"email":"bob@gmail.com", "password":"pass12345"}`,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: errorResponse{
+				Error: "invalid authentication credentials",
+			},
+		},
+		{
 			name:                   "User does not exist",
 			requestUrlPath:         "/v1/tokens/authentication",
 			requestMethodType:      http.MethodPost,
 			requestBody:            `{"email":"abc@gmail.com", "password":"pass12345"}`,
 			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "invalid authentication credentials",
+			wantResponse: errorResponse{
+				Error: "invalid authentication credentials",
 			},
 		},
 	}
-
-	db := newTestDB(t)
-	app := newTestApplication(db)
 
 	testHandler(t, app, testcases...)
 }
