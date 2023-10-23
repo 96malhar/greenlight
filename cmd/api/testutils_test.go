@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,53 +21,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
-
-var notFoundResponse = map[string]string{
-	"error": "the requested resource could not be found",
-}
-
-type healthCheckResponse struct {
-	Status     string            `json:"status"`
-	SystemInfo map[string]string `json:"system_info"`
-}
-
-type movie struct {
-	ID      int      `json:"id"`
-	Title   string   `json:"title"`
-	Year    int      `json:"year"`
-	Runtime string   `json:"runtime"`
-	Genres  []string `json:"genres"`
-	Version int      `json:"version"`
-}
-
-type movieResponse struct {
-	Movie movie `json:"movie"`
-}
-
-type PaginationMetadata struct {
-	CurrentPage  int `json:"current_page"`
-	PageSize     int `json:"page_size"`
-	TotalRecords int `json:"total_records"`
-	LastPage     int `json:"last_page"`
-	FirstPage    int `json:"first_page"`
-}
-
-type listMovieResponse struct {
-	Movies             []movie            `json:"movies"`
-	PaginationMetadata PaginationMetadata `json:"metadata"`
-}
-
-type user struct {
-	ID        int64     `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Activated bool      `json:"activated"`
-}
-
-type userResponse struct {
-	User user `json:"user"`
-}
 
 type errorResponse struct {
 	Error string `json:"error"`
@@ -153,9 +105,6 @@ func newTestApplication(db *sql.DB) *application {
 		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		config:     config{env: "development"},
 		modelStore: data.NewModelStore(db),
-		utcNow: func() time.Time {
-			return time.Now().UTC()
-		},
 	}
 }
 
@@ -199,16 +148,6 @@ func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string,
 
 	_, err = db.Exec(query, name, email, createdAt, hash, false)
 	require.NoError(t, err, "Failed to insert user in the database")
-}
-
-func newPaginationMetadata(currentPage, pageSize, totalRecords int) PaginationMetadata {
-	return PaginationMetadata{
-		CurrentPage:  currentPage,
-		PageSize:     pageSize,
-		TotalRecords: totalRecords,
-		LastPage:     int(math.Ceil(float64(totalRecords) / float64(pageSize))),
-		FirstPage:    1,
-	}
 }
 
 // Mocks the mailer interface

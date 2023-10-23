@@ -33,3 +33,9 @@ PUT localhost:4000/v1/users/activated
 Content-Type: application/json
 
 {"token":"H2NMasdasdasnfjadhskjlfjhs"}
+
+### Get Authentication token for user
+POST localhost:4000//v1/tokens/authentication
+Content-Type: application/json
+
+{"email":"bob@gmail.com", "password":"5ecret1234"}

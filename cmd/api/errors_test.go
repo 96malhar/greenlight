@@ -124,6 +124,22 @@ func TestRateLimitExceededResponse(t *testing.T) {
 	assert.Equal(t, wantResponse, gotResponse)
 }
 
+func TestInvalidCredentialsResponse(t *testing.T) {
+	app, rr, req := arrangeErrorTest()
+
+	app.invalidCredentialsResponse(rr, req)
+
+	result := rr.Result()
+	var gotResponse errorResponse
+	readJsonResponse(t, result.Body, &gotResponse)
+	wantResponse := errorResponse{
+		Error: "invalid authentication credentials",
+	}
+
+	assert.Equal(t, http.StatusUnauthorized, result.StatusCode)
+	assert.Equal(t, wantResponse, gotResponse)
+}
+
 func arrangeErrorTest() (*application, *httptest.ResponseRecorder, *http.Request) {
 	app := newTestApplication(nil)
 	rr := httptest.NewRecorder()

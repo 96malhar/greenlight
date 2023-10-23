@@ -37,11 +37,11 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 
 			if tc.wantResponse != nil {
 				// reflect.New() returns a pointer to the type
-				gotResponse := reflect.New(reflect.TypeOf(tc.wantResponse)).Interface()
-				readJsonResponse(t, res.Body, gotResponse)
+				dst := reflect.New(reflect.TypeOf(tc.wantResponse)).Interface()
+				readJsonResponse(t, res.Body, dst)
 
 				// deference the pointer to get the value
-				gotResponse = reflect.ValueOf(gotResponse).Elem().Interface()
+				gotResponse := reflect.ValueOf(dst).Elem().Interface()
 				assert.Equal(t, tc.wantResponse, gotResponse)
 			}
 

@@ -1,9 +1,50 @@
 package main
 
 import (
+	"math"
 	"net/http"
 	"testing"
 )
+
+type movie struct {
+	ID      int      `json:"id"`
+	Title   string   `json:"title"`
+	Year    int      `json:"year"`
+	Runtime string   `json:"runtime"`
+	Genres  []string `json:"genres"`
+	Version int      `json:"version"`
+}
+
+type movieResponse struct {
+	Movie movie `json:"movie"`
+}
+
+type paginationMetadata struct {
+	CurrentPage  int `json:"current_page"`
+	PageSize     int `json:"page_size"`
+	TotalRecords int `json:"total_records"`
+	LastPage     int `json:"last_page"`
+	FirstPage    int `json:"first_page"`
+}
+
+type listMovieResponse struct {
+	Movies             []movie            `json:"movies"`
+	PaginationMetadata paginationMetadata `json:"metadata"`
+}
+
+var notFoundResponse = map[string]string{
+	"error": "the requested resource could not be found",
+}
+
+func newPaginationMetadata(currentPage, pageSize, totalRecords int) paginationMetadata {
+	return paginationMetadata{
+		CurrentPage:  currentPage,
+		PageSize:     pageSize,
+		TotalRecords: totalRecords,
+		LastPage:     int(math.Ceil(float64(totalRecords) / float64(pageSize))),
+		FirstPage:    1,
+	}
+}
 
 func TestCreateMovieHandler(t *testing.T) {
 	testcases := []handlerTestcase{
@@ -305,7 +346,7 @@ func TestListMoviesHandler(t *testing.T) {
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{},
-				PaginationMetadata: PaginationMetadata{},
+				PaginationMetadata: paginationMetadata{},
 			},
 		},
 		{
@@ -315,7 +356,7 @@ func TestListMoviesHandler(t *testing.T) {
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{},
-				PaginationMetadata: PaginationMetadata{},
+				PaginationMetadata: paginationMetadata{},
 			},
 		},
 		{

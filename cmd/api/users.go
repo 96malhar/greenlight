@@ -24,7 +24,6 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	user := &data.User{
 		Name:      input.Name,
 		Email:     input.Email,
-		CreatedAt: app.utcNow(),
 		Activated: false,
 	}
 

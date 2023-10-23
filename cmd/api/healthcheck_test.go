@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+type healthCheckResponse struct {
+	Status     string            `json:"status"`
+	SystemInfo map[string]string `json:"system_info"`
+}
+
 func TestHealthcheckHandler(t *testing.T) {
 	want := healthCheckResponse{
 		Status: "available",

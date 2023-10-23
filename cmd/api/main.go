@@ -51,7 +51,6 @@ type application struct {
 	logger     *slog.Logger
 	modelStore data.ModelStore
 	mailer     email.MailerInterface
-	utcNow     func() time.Time
 	wg         sync.WaitGroup
 }
 
@@ -70,11 +69,8 @@ func main() {
 	defer db.Close()
 
 	app := &application{
-		config: cfg,
-		logger: logger,
-		utcNow: func() time.Time {
-			return time.Now().UTC()
-		},
+		config:     cfg,
+		logger:     logger,
 		mailer:     email.NewMailer(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 		modelStore: data.NewModelStore(db),
 	}

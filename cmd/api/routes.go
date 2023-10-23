@@ -12,13 +12,21 @@ func (app *application) routes() *chi.Mux {
 	r.Use(app.recoverPanic, app.rateLimit)
 
 	r.Get("/v1/healthcheck", app.healthcheckHandler)
-	r.Get("/v1/movies", app.listMoviesHandler)
-	r.Post("/v1/movies", app.createMovieHandler)
-	r.Get("/v1/movies/{id}", app.showMovieHandler)
-	r.Patch("/v1/movies/{id}", app.updateMovieHandler)
-	r.Delete("/v1/movies/{id}", app.deleteMovieHandler)
 
-	r.Post("/v1/users", app.registerUserHandler)
-	r.Put("/v1/users/activated", app.activateUserHandler)
+	r.Route("/v1/movies", func(r chi.Router) {
+		r.Get("/", app.listMoviesHandler)
+		r.Post("/", app.createMovieHandler)
+		r.Get("/{id}", app.showMovieHandler)
+		r.Patch("/{id}", app.updateMovieHandler)
+		r.Delete("/{id}", app.deleteMovieHandler)
+	})
+
+	r.Route("/v1/users", func(r chi.Router) {
+		r.Post("/", app.registerUserHandler)
+		r.Put("/activated", app.activateUserHandler)
+	})
+
+	r.Post("/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+
 	return r
 }

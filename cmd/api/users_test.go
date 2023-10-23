@@ -8,47 +8,43 @@ import (
 	"time"
 )
 
+type user struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Activated bool      `json:"activated"`
+}
+
+type userResponse struct {
+	User user `json:"user"`
+}
+
 func TestRegisterUserHandler_ValidRequest(t *testing.T) {
 	db := newTestDB(t)
-
-	currTime := time.Date(2021, time.January, 5, 15, 42, 58, 0, time.UTC)
-
-	// seed users table with a user
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", currTime)
-
-	app := newTestApplication(db)
 	mailer := &mockMailer{}
+	app := newTestApplication(db)
 	app.mailer = mailer
-	app.utcNow = func() time.Time {
-		return currTime
-	}
+	ts := newTestServer(app.routes())
 
-	checkEmailSent := func(t *testing.T) {
-		// wait for the user to get the activation email
-		time.Sleep(200 * time.Millisecond)
-		assert.True(t, mailer.SendInvoked)
-		assert.True(t, mailer.TokenPlainText != "")
-	}
+	res, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
+	require.NoError(t, err)
+	defer res.Body.Close()
 
-	testcase := handlerTestcase{
-		name:                   "Valid user",
-		requestUrlPath:         "/v1/users",
-		requestMethodType:      http.MethodPost,
-		requestBody:            `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`,
-		wantResponseStatusCode: http.StatusAccepted,
-		wantResponse: userResponse{
-			User: user{
-				ID: 2, Name: "Bob",
-				Email: "bob@gmail.com", Activated: false,
-				CreatedAt: currTime,
-			},
-		},
-		additionalChecks: []func(t *testing.T){
-			checkEmailSent,
-		},
-	}
+	assert.Equal(t, http.StatusAccepted, res.StatusCode)
 
-	testHandler(t, app, testcase)
+	dst := &userResponse{}
+	readJsonResponse(t, res.Body, dst)
+	assert.Equal(t, int64(1), dst.User.ID)
+	assert.Equal(t, "Bob", dst.User.Name)
+	assert.Equal(t, "bob@gmail.com", dst.User.Email)
+	assert.False(t, dst.User.Activated)
+	assert.WithinDuration(t, time.Now().UTC(), dst.User.CreatedAt, 1*time.Second)
+
+	// wait for the user to get the activation email
+	time.Sleep(200 * time.Millisecond)
+	assert.True(t, mailer.SendInvoked)
+	assert.True(t, mailer.TokenPlainText != "")
 }
 
 func TestRegisterUserHandler_InvalidRequest(t *testing.T) {
@@ -102,44 +98,34 @@ func TestRegisterUserHandler_InvalidRequest(t *testing.T) {
 }
 
 func TestActivateUserHandler_ValidRequest(t *testing.T) {
-	db := newTestDB(t)
-	currTime := time.Date(2021, time.January, 5, 15, 42, 58, 0, time.UTC)
-	app := newTestApplication(db)
-	app.utcNow = func() time.Time {
-		return currTime
-	}
+	app := newTestApplication(newTestDB(t))
 	mailer := &mockMailer{}
 	app.mailer = mailer
 
 	ts := newTestServer(app.routes())
 
 	// Register a user
-	res, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
+	_, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
 
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusAccepted, res.StatusCode)
 
 	// wait for the user to get the activation email
 	time.Sleep(200 * time.Millisecond)
 
 	// activate the above user
-	activationToken := mailer.TokenPlainText
-	testcase := handlerTestcase{
-		name:                   "Valid token",
-		requestUrlPath:         "/v1/users/activated",
-		requestMethodType:      http.MethodPut,
-		requestBody:            `{"token":"` + activationToken + `"}`,
-		wantResponseStatusCode: http.StatusOK,
-		wantResponse: userResponse{
-			User: user{
-				ID: 1, Name: "Bob",
-				Email: "bob@gmail.com", Activated: true,
-				CreatedAt: currTime,
-			},
-		},
-	}
+	res, err := ts.executeRequest(http.MethodPut, "/v1/users/activated", `{"token":"`+mailer.TokenPlainText+`"}`, nil)
+	require.NoError(t, err)
+	defer res.Body.Close()
 
-	testHandler(t, app, testcase)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	dst := &userResponse{}
+	readJsonResponse(t, res.Body, dst)
+	assert.Equal(t, int64(1), dst.User.ID)
+	assert.Equal(t, "Bob", dst.User.Name)
+	assert.Equal(t, "bob@gmail.com", dst.User.Email)
+	assert.True(t, dst.User.Activated)
+	assert.WithinDuration(t, time.Now().UTC(), dst.User.CreatedAt, 1*time.Second)
 }
 
 func TestActivateUserHandler_InvalidRequest(t *testing.T) {
