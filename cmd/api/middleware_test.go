@@ -1,11 +1,14 @@
 package main
 
 import (
+	"github.com/96malhar/greenlight/internal/data"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestRecoverPanic(t *testing.T) {
@@ -68,4 +71,62 @@ func TestRateLimit(t *testing.T) {
 			assert.Equal(t, tc.wantStatusCodes, statusCodes)
 		})
 	}
+}
+
+func TestAuthenticate(t *testing.T) {
+	db := newTestDB(t)
+	app := newTestApplication(db)
+
+	// seed users table with a user
+	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC())
+	user, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
+	require.NoError(t, err)
+
+	router := chi.NewRouter()
+	router.Use(app.authenticate)
+
+	// add a test endpoint that requires authentication
+	router.Get("/test-auth", func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+		if user.IsAnonymous() {
+			w.Header().Set("AnonymousUser", "true")
+		} else {
+			w.Header().Set("AnonymousUser", "false")
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	t.Run("No Authorization header", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/test-auth", nil))
+
+		result := rr.Result()
+		assert.Equal(t, result.StatusCode, http.StatusOK)
+		assert.Equal(t, result.Header.Get("AnonymousUser"), "true")
+	})
+
+	t.Run("Invalid Authorization header", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
+		req.Header.Set("Authorization", "invalid token")
+		router.ServeHTTP(rr, req)
+
+		result := rr.Result()
+		assert.Equal(t, result.StatusCode, http.StatusUnauthorized)
+		assert.Equal(t, result.Header.Get("WWW-Authenticate"), "Bearer")
+	})
+
+	t.Run("Valid Authorization header", func(t *testing.T) {
+		token, err := app.modelStore.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
+		require.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
+		req.Header.Set("Authorization", "Bearer "+token.Plaintext)
+		router.ServeHTTP(rr, req)
+
+		result := rr.Result()
+		assert.Equal(t, result.StatusCode, http.StatusOK)
+		assert.Equal(t, result.Header.Get("AnonymousUser"), "false")
+	})
 }
