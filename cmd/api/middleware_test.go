@@ -82,51 +82,95 @@ func TestAuthenticate(t *testing.T) {
 	user, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
 	require.NoError(t, err)
 
+	// Set up the router with the authentication middleware.
 	router := chi.NewRouter()
 	router.Use(app.authenticate)
 
 	// add a test endpoint that requires authentication
 	router.Get("/test-auth", func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
+		anonymousUser := "false"
 		if user.IsAnonymous() {
-			w.Header().Set("AnonymousUser", "true")
-		} else {
-			w.Header().Set("AnonymousUser", "false")
+			anonymousUser = "true"
 		}
+		w.Header().Set("AnonymousUser", anonymousUser)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	t.Run("No Authorization header", func(t *testing.T) {
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/test-auth", nil))
+	validToken, err := app.modelStore.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
+	require.NoError(t, err)
 
-		result := rr.Result()
-		assert.Equal(t, result.StatusCode, http.StatusOK)
-		assert.Equal(t, result.Header.Get("AnonymousUser"), "true")
-	})
+	testcases := []struct {
+		name                string
+		requestHeaders      map[string]string
+		wantStatusCode      int
+		wantResponseHeaders map[string]string
+	}{
+		{
+			name:           "No Authorization header",
+			wantStatusCode: http.StatusOK,
+			wantResponseHeaders: map[string]string{
+				"AnonymousUser": "true",
+			},
+		},
+		{
+			name: "Invalid Authorization header",
+			requestHeaders: map[string]string{
+				"Authorization": "invalid format",
+			},
+			wantStatusCode: http.StatusUnauthorized,
+			wantResponseHeaders: map[string]string{
+				"WWW-Authenticate": "Bearer",
+			},
+		},
+		{
+			name: "Invalid token",
+			requestHeaders: map[string]string{
+				"Authorization": "Bearer 12345", // Actual tokens are 26 bytes long.
+			},
+			wantStatusCode: http.StatusUnauthorized,
+			wantResponseHeaders: map[string]string{
+				"WWW-Authenticate": "Bearer",
+			},
+		},
+		{
+			name: "Unknown token",
+			requestHeaders: map[string]string{
+				"Authorization": "Bearer 12345678901234567890123456",
+			},
+			wantStatusCode: http.StatusUnauthorized,
+			wantResponseHeaders: map[string]string{
+				"WWW-Authenticate": "Bearer",
+			},
+		},
+		{
+			name: "Valid Authorization header",
+			requestHeaders: map[string]string{
+				"Authorization": "Bearer " + validToken.Plaintext,
+			},
+			wantStatusCode: http.StatusOK,
+			wantResponseHeaders: map[string]string{
+				"AnonymousUser": "false",
+			},
+		},
+	}
 
-	t.Run("Invalid Authorization header", func(t *testing.T) {
-		rr := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
-		req.Header.Set("Authorization", "invalid token")
-		router.ServeHTTP(rr, req)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
 
-		result := rr.Result()
-		assert.Equal(t, result.StatusCode, http.StatusUnauthorized)
-		assert.Equal(t, result.Header.Get("WWW-Authenticate"), "Bearer")
-	})
+			for k, v := range tc.requestHeaders {
+				req.Header.Set(k, v)
+			}
 
-	t.Run("Valid Authorization header", func(t *testing.T) {
-		token, err := app.modelStore.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
-		require.NoError(t, err)
+			router.ServeHTTP(rr, req)
 
-		rr := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
-		req.Header.Set("Authorization", "Bearer "+token.Plaintext)
-		router.ServeHTTP(rr, req)
-
-		result := rr.Result()
-		assert.Equal(t, result.StatusCode, http.StatusOK)
-		assert.Equal(t, result.Header.Get("AnonymousUser"), "false")
-	})
+			result := rr.Result()
+			assert.Equal(t, tc.wantStatusCode, result.StatusCode)
+			for k, v := range tc.wantResponseHeaders {
+				assert.Equal(t, v, result.Header.Get(k))
+			}
+		})
+	}
 }
