@@ -78,7 +78,7 @@ func TestAuthenticate(t *testing.T) {
 	app := newTestApplication(db)
 
 	// seed users table with a user
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC())
+	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), false)
 	user, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
 	require.NoError(t, err)
 

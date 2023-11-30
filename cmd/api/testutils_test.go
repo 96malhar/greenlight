@@ -38,14 +38,18 @@ func newTestServer(router http.Handler) *testServer {
 	return &testServer{router}
 }
 
-func (ts *testServer) executeRequest(method, urlPath, body string, header http.Header) (*http.Response, error) {
+func (ts *testServer) executeRequest(method, urlPath, body string, requestHeader map[string]string) (*http.Response, error) {
 	req, err := http.NewRequest(method, urlPath, strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	if header != nil {
-		req.Header = header
+
+	// convert requestHeader map to http.Header
+	header := http.Header{}
+	for key, val := range requestHeader {
+		header.Add(key, val)
 	}
+	req.Header = header
 
 	rr := httptest.NewRecorder()
 	ts.router.ServeHTTP(rr, req)
@@ -138,7 +142,7 @@ func insertMovie(t *testing.T, db *sql.DB, title string, year string, runtime in
 	require.NoError(t, err, "Failed to insert movie in the database")
 }
 
-func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string, createdAt time.Time) {
+func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string, createdAt time.Time, activated bool) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
 	require.NoError(t, err)
 
@@ -146,8 +150,18 @@ func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string,
 		INSERT INTO users (name, email, created_at, password_hash, activated)
 		VALUES ($1, $2, $3, $4, $5)`
 
-	_, err = db.Exec(query, name, email, createdAt, hash, false)
+	_, err = db.Exec(query, name, email, createdAt, hash, activated)
 	require.NoError(t, err, "Failed to insert user in the database")
+}
+
+func generateAuthToken(t *testing.T, app *application, db *sql.DB) string {
+	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), true)
+	alice, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
+	require.NoError(t, err)
+
+	authToken, err := app.modelStore.Tokens.New(alice.ID, 24*time.Hour, data.ScopeAuthentication)
+	require.NoError(t, err)
+	return authToken.Plaintext
 }
 
 // Mocks the mailer interface

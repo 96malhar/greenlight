@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
 	"reflect"
 	"testing"
 )
@@ -13,7 +12,7 @@ type handlerTestcase struct {
 	requestMethodType      string
 	requestUrlPath         string
 	requestBody            string
-	requestHeader          http.Header
+	requestHeader          map[string]string
 	wantResponseStatusCode int
 	wantResponse           any
 	wantResponseHeader     map[string]string

@@ -51,7 +51,6 @@ func TestCreateMovieHandler(t *testing.T) {
 		{
 			name:                   "Valid movie",
 			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodPost,
 			requestBody:            `{"title":"Die Hard","year":1988,"runtime":"207 mins","genres":["Action", "Thriller"]}`,
 			wantResponseStatusCode: http.StatusCreated,
 			wantResponseHeader: map[string]string{
@@ -67,7 +66,6 @@ func TestCreateMovieHandler(t *testing.T) {
 		{
 			name:                   "Empty year",
 			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodPost,
 			requestBody:            `{"title":"Die Hard","runtime":"207 mins","genres":["Action", "Thriller"]}`,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: validationErrorResponse{
@@ -79,7 +77,6 @@ func TestCreateMovieHandler(t *testing.T) {
 		{
 			name:                   "Duplicate genre",
 			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodPost,
 			requestBody:            `{"title":"Die Hard","year":1988,"runtime":"207 mins","genres":["Action", "Action", "Thriller"]}`,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: validationErrorResponse{
@@ -91,7 +88,6 @@ func TestCreateMovieHandler(t *testing.T) {
 		{
 			name:                   "Invalid runtime format",
 			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodPost,
 			requestBody:            `{"title":"Die Hard","year":1988,"runtime":207,"genres":["Action", "Thriller"]}`,
 			wantResponseStatusCode: http.StatusBadRequest,
 			wantResponse: map[string]string{
@@ -100,7 +96,18 @@ func TestCreateMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(newTestDB(t)), testcases...)
+	db := newTestDB(t)
+	app := newTestApplication(db)
+	authToken := generateAuthToken(t, app, db)
+
+	for _, tc := range testcases {
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + authToken
+		tc.requestMethodType = http.MethodPost
+		testHandler(t, app, tc)
+	}
 }
 
 func TestShowMovieHandler(t *testing.T) {
@@ -112,7 +119,6 @@ func TestShowMovieHandler(t *testing.T) {
 		{
 			name:                   "Valid ID",
 			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: movieResponse{
 				Movie: movie{
@@ -124,20 +130,28 @@ func TestShowMovieHandler(t *testing.T) {
 		{
 			name:                   "Resource not found",
 			requestUrlPath:         "/v1/movies/2",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse:           notFoundResponse,
 		},
 		{
 			name:                   "Invalid ID",
 			requestUrlPath:         "/v1/movies/asad",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse:           notFoundResponse,
 		},
 	}
 
-	testHandler(t, newTestApplication(db), testcases...)
+	app := newTestApplication(db)
+	authToken := generateAuthToken(t, app, db)
+
+	for _, tc := range testcases {
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + authToken
+		tc.requestMethodType = http.MethodGet
+		testHandler(t, app, tc)
+	}
 }
 
 func TestDeleteMovieHandler(t *testing.T) {
@@ -150,7 +164,6 @@ func TestDeleteMovieHandler(t *testing.T) {
 		{
 			name:                   "Valid ID",
 			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodDelete,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: map[string]string{
 				"message": "movie successfully deleted",
@@ -159,20 +172,28 @@ func TestDeleteMovieHandler(t *testing.T) {
 		{
 			name:                   "Resource not found",
 			requestUrlPath:         "/v1/movies/6",
-			requestMethodType:      http.MethodDelete,
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse:           notFoundResponse,
 		},
 		{
 			name:                   "Invalid ID",
 			requestUrlPath:         "/v1/movies/1ds",
-			requestMethodType:      http.MethodDelete,
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse:           notFoundResponse,
 		},
 	}
 
-	testHandler(t, newTestApplication(db), testcases...)
+	app := newTestApplication(db)
+	authToken := generateAuthToken(t, app, db)
+
+	for _, tc := range testcases {
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + authToken
+		tc.requestMethodType = http.MethodDelete
+		testHandler(t, app, tc)
+	}
 }
 
 func TestUpdateMovieHandler(t *testing.T) {
@@ -184,7 +205,6 @@ func TestUpdateMovieHandler(t *testing.T) {
 		{
 			name:                   "Valid update",
 			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodPatch,
 			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: movieResponse{
@@ -197,7 +217,6 @@ func TestUpdateMovieHandler(t *testing.T) {
 		{
 			name:                   "ID does not exist",
 			requestUrlPath:         "/v1/movies/5",
-			requestMethodType:      http.MethodPatch,
 			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
 			wantResponseStatusCode: http.StatusNotFound,
 			wantResponse:           notFoundResponse,
@@ -205,7 +224,6 @@ func TestUpdateMovieHandler(t *testing.T) {
 		{
 			name:                   "Badly formed JSON request",
 			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodPatch,
 			requestBody:            `{"genres": ["Romance"], "year"- 1997}`,
 			wantResponseStatusCode: http.StatusBadRequest,
 			wantResponse: map[string]string{
@@ -215,7 +233,6 @@ func TestUpdateMovieHandler(t *testing.T) {
 		{
 			name:                   "Validation error",
 			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodPatch,
 			requestBody:            `{"genres":["Romance"], "year":1997, "runtime":"207 mins", "title":""}`,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: validationErrorResponse{
@@ -226,12 +243,23 @@ func TestUpdateMovieHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(db), testcases...)
+	app := newTestApplication(db)
+	authToken := generateAuthToken(t, app, db)
+
+	for _, tc := range testcases {
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + authToken
+		tc.requestMethodType = http.MethodPatch
+		testHandler(t, app, tc)
+	}
 }
 
 func TestListMoviesHandler(t *testing.T) {
 	db := newTestDB(t)
 
+	// seed movies table with movies
 	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
 	insertMovie(t, db, "Titanic", "1997", 167, []string{"Romance"})
 	insertMovie(t, db, "Batman", "1989", 126, []string{"Action"})
@@ -253,7 +281,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "No query parameters",
 			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{dieHard, titanic, batman},
@@ -263,7 +290,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "sort=-year",
 			requestUrlPath:         "/v1/movies?sort=-year",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{titanic, batman, dieHard},
@@ -273,7 +299,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "Invalid sort key",
 			requestUrlPath:         "/v1/movies?sort=xyz",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: map[string]map[string]string{
 				"error": {"sort": "invalid sort value"},
@@ -282,7 +307,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "genres=Action",
 			requestUrlPath:         "/v1/movies?genres=Action",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{dieHard, batman},
@@ -292,7 +316,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "genres=Action,Thriller",
 			requestUrlPath:         "/v1/movies?genres=Action,Thriller",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{dieHard},
@@ -302,7 +325,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "title=Titanic genres=Romance",
 			requestUrlPath:         "/v1/movies?title=Titanic&genres=Romance",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{titanic},
@@ -312,7 +334,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "title=die",
 			requestUrlPath:         "/v1/movies?title=die",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{dieHard},
@@ -322,7 +343,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "page=1&page_size=2",
 			requestUrlPath:         "/v1/movies?page=1&page_size=2",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{dieHard, titanic},
@@ -332,7 +352,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "page=2&page_size=2",
 			requestUrlPath:         "/v1/movies?page=2&page_size=2",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{batman},
@@ -342,7 +361,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "page=3&page_size=2",
 			requestUrlPath:         "/v1/movies?page=3&page_size=2",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{},
@@ -352,7 +370,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "Empty movie list",
 			requestUrlPath:         "/v1/movies?title=Spiderman",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusOK,
 			wantResponse: listMovieResponse{
 				Movies:             []movie{},
@@ -362,7 +379,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "Non-numeric page",
 			requestUrlPath:         "/v1/movies?page=abc",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: map[string]map[string]string{
 				"error": {"page": "must be an integer value"},
@@ -371,7 +387,6 @@ func TestListMoviesHandler(t *testing.T) {
 		{
 			name:                   "Out-of-bounds page_size",
 			requestUrlPath:         "/v1/movies?page_size=1000",
-			requestMethodType:      http.MethodGet,
 			wantResponseStatusCode: http.StatusUnprocessableEntity,
 			wantResponse: map[string]map[string]string{
 				"error": {"page_size": "must be a maximum of 100"},
@@ -379,5 +394,73 @@ func TestListMoviesHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, newTestApplication(db), testcases...)
+	app := newTestApplication(db)
+	authToken := generateAuthToken(t, app, db)
+
+	for _, tc := range testcases {
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + authToken
+		tc.requestMethodType = http.MethodGet
+		testHandler(t, app, tc)
+	}
+}
+
+func TestUnauthenticatedRequests(t *testing.T) {
+	testcases := []handlerTestcase{
+		{
+			name:                   "Create movie",
+			requestUrlPath:         "/v1/movies",
+			requestMethodType:      http.MethodPost,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: map[string]string{
+				"error": "authentication required",
+			},
+		},
+		{
+			name:                   "Show movie",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: map[string]string{
+				"error": "authentication required",
+			},
+		},
+		{
+			name:                   "Update movie",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodPatch,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: map[string]string{
+				"error": "authentication required",
+			},
+		},
+		{
+			name:                   "Delete movie",
+			requestUrlPath:         "/v1/movies/1",
+			requestMethodType:      http.MethodDelete,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: map[string]string{
+				"error": "authentication required",
+			},
+		},
+		{
+			name:                   "List movies",
+			requestUrlPath:         "/v1/movies",
+			requestMethodType:      http.MethodGet,
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: map[string]string{
+				"error": "authentication required",
+			},
+		},
+	}
+
+	app := newTestApplication(nil)
+	for _, tc := range testcases {
+		tc.wantResponse = errorResponse{
+			Error: "you must be authenticated to access this resource",
+		}
+		testHandler(t, app, tc)
+	}
 }

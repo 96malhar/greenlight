@@ -51,7 +51,7 @@ func TestRegisterUserHandler_InvalidRequest(t *testing.T) {
 	db := newTestDB(t)
 
 	// seed users table with a user
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC())
+	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), false)
 
 	app := newTestApplication(db)
 
