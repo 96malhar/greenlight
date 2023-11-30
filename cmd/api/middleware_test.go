@@ -100,6 +100,9 @@ func TestAuthenticate(t *testing.T) {
 	validToken, err := app.modelStore.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
 	require.NoError(t, err)
 
+	expiredToken, err := app.modelStore.Tokens.New(user.ID, -1*time.Hour, data.ScopeAuthentication)
+	require.NoError(t, err)
+
 	testcases := []struct {
 		name                string
 		requestHeaders      map[string]string
@@ -151,6 +154,16 @@ func TestAuthenticate(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			wantResponseHeaders: map[string]string{
 				"AnonymousUser": "false",
+			},
+		},
+		{
+			name: "Expired token",
+			requestHeaders: map[string]string{
+				"Authorization": "Bearer " + expiredToken.Plaintext,
+			},
+			wantStatusCode: http.StatusUnauthorized,
+			wantResponseHeaders: map[string]string{
+				"WWW-Authenticate": "Bearer",
 			},
 		},
 	}
