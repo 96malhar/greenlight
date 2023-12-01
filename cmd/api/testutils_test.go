@@ -111,21 +111,13 @@ func (ts *testServer) insertUser(t *testing.T, usr dummyUser) string {
 		usr.authTTL = 24 * time.Hour
 	}
 	u, err := ts.app.modelStore.Users.GetByEmail(usr.email)
+	require.NoError(t, err, "Failed to fetch user from the database")
 	authToken, err := ts.app.modelStore.Tokens.New(u.ID, usr.authTTL, data.ScopeAuthentication)
 	require.NoError(t, err, "Failed to create auth token")
 
 	err = ts.app.modelStore.Permissions.AddForUser(id, usr.permCodes...)
 	require.NoError(t, err, "Failed to add permissions for user")
 
-	return authToken.Plaintext
-}
-
-func (ts *testServer) generateAuthToken(t *testing.T, userEmail string, ttl time.Duration) string {
-	usr, err := ts.app.modelStore.Users.GetByEmail(userEmail)
-	require.NoError(t, err)
-
-	authToken, err := ts.app.modelStore.Tokens.New(usr.ID, ttl, data.ScopeAuthentication)
-	require.NoError(t, err)
 	return authToken.Plaintext
 }
 
