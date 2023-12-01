@@ -173,7 +173,7 @@ func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler
 
 // Checks that a user is both authenticated and activated.
 func (app *application) requireActivatedUser(next http.Handler) http.Handler {
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
 
 		// Check that a user is activated.
@@ -183,8 +183,39 @@ func (app *application) requireActivatedUser(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
-	})
+	}
 
 	// Wrap fn with the requireAuthenticatedUser() middleware before returning it.
-	return app.requireAuthenticatedUser(fn)
+	return app.requireAuthenticatedUser(http.HandlerFunc(fn))
+}
+
+// Checks that a user has the specified permission. If they don't, then a 403 Forbidden response is sent to the client.
+func (app *application) requirePermission(code string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			// Retrieve the user from the request context.
+			user := app.contextGetUser(r)
+
+			// Get the slice of permissions for the user.
+			permissions, err := app.modelStore.Permissions.GetAllForUser(user.ID)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
+
+			// Check if the slice includes the required permission. If it doesn't, then
+			// return a 403 Forbidden response.
+			if !permissions.Include(code) {
+				app.notPermittedResponse(w, r)
+				return
+			}
+
+			// Otherwise they have the required permission, so we call the next handler in
+			// the chain.
+			next.ServeHTTP(w, r)
+		}
+
+		// Wrap this with the requireActivatedUser middleware before returning it.
+		return app.requireActivatedUser(http.HandlerFunc(fn))
+	}
 }

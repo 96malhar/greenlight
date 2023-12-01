@@ -52,6 +52,13 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Add the "movies:read" permission for the new user.
+	err = app.modelStore.Permissions.AddForUser(user.ID, "movies:read")
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	token, err := app.modelStore.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

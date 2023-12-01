@@ -96,9 +96,12 @@ func TestCreateMovieHandler(t *testing.T) {
 		},
 	}
 
-	db := newTestDB(t)
-	app := newTestApplication(db)
-	authToken := generateAuthToken(t, app, db)
+	ts := newTestServer(t)
+	authToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:write"},
+	})
 
 	for _, tc := range testcases {
 		if tc.requestHeader == nil {
@@ -106,14 +109,18 @@ func TestCreateMovieHandler(t *testing.T) {
 		}
 		tc.requestHeader["Authorization"] = "Bearer " + authToken
 		tc.requestMethodType = http.MethodPost
-		testHandler(t, app, tc)
+		testHandler(t, ts, tc)
 	}
 }
 
 func TestShowMovieHandler(t *testing.T) {
-	db := newTestDB(t)
-
-	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
+	ts := newTestServer(t)
+	ts.insertMovie(t, "Die Hard", 1988, 207, []string{"Action", "Thriller"})
+	authToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:read"},
+	})
 
 	testcases := []handlerTestcase{
 		{
@@ -141,24 +148,20 @@ func TestShowMovieHandler(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(db)
-	authToken := generateAuthToken(t, app, db)
-
 	for _, tc := range testcases {
 		if tc.requestHeader == nil {
 			tc.requestHeader = make(map[string]string)
 		}
 		tc.requestHeader["Authorization"] = "Bearer " + authToken
 		tc.requestMethodType = http.MethodGet
-		testHandler(t, app, tc)
+		testHandler(t, ts, tc)
 	}
 }
 
 func TestDeleteMovieHandler(t *testing.T) {
-	db := newTestDB(t)
-
-	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
-	insertMovie(t, db, "Titanic", "1997", 196, []string{"Romance"})
+	ts := newTestServer(t)
+	ts.insertMovie(t, "Die Hard", 1988, 207, []string{"Action", "Thriller"})
+	ts.insertMovie(t, "Titanic", 1997, 196, []string{"Romance"})
 
 	testcases := []handlerTestcase{
 		{
@@ -183,8 +186,11 @@ func TestDeleteMovieHandler(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(db)
-	authToken := generateAuthToken(t, app, db)
+	authToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:write"},
+	})
 
 	for _, tc := range testcases {
 		if tc.requestHeader == nil {
@@ -192,14 +198,13 @@ func TestDeleteMovieHandler(t *testing.T) {
 		}
 		tc.requestHeader["Authorization"] = "Bearer " + authToken
 		tc.requestMethodType = http.MethodDelete
-		testHandler(t, app, tc)
+		testHandler(t, ts, tc)
 	}
 }
 
 func TestUpdateMovieHandler(t *testing.T) {
-	db := newTestDB(t)
-
-	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
+	ts := newTestServer(t)
+	ts.insertMovie(t, "Die Hard", 1988, 207, []string{"Action", "Thriller"})
 
 	testcases := []handlerTestcase{
 		{
@@ -243,8 +248,11 @@ func TestUpdateMovieHandler(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(db)
-	authToken := generateAuthToken(t, app, db)
+	authToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:write"},
+	})
 
 	for _, tc := range testcases {
 		if tc.requestHeader == nil {
@@ -252,17 +260,17 @@ func TestUpdateMovieHandler(t *testing.T) {
 		}
 		tc.requestHeader["Authorization"] = "Bearer " + authToken
 		tc.requestMethodType = http.MethodPatch
-		testHandler(t, app, tc)
+		testHandler(t, ts, tc)
 	}
 }
 
 func TestListMoviesHandler(t *testing.T) {
-	db := newTestDB(t)
+	ts := newTestServer(t)
 
 	// seed movies table with movies
-	insertMovie(t, db, "Die Hard", "1988", 207, []string{"Action", "Thriller"})
-	insertMovie(t, db, "Titanic", "1997", 167, []string{"Romance"})
-	insertMovie(t, db, "Batman", "1989", 126, []string{"Action"})
+	ts.insertMovie(t, "Die Hard", 1988, 207, []string{"Action", "Thriller"})
+	ts.insertMovie(t, "Titanic", 1997, 167, []string{"Romance"})
+	ts.insertMovie(t, "Batman", 1989, 126, []string{"Action"})
 
 	dieHard := movie{
 		ID: 1, Title: "Die Hard", Year: 1988, Runtime: "207 mins",
@@ -394,8 +402,11 @@ func TestListMoviesHandler(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(db)
-	authToken := generateAuthToken(t, app, db)
+	authToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:read"},
+	})
 
 	for _, tc := range testcases {
 		if tc.requestHeader == nil {
@@ -403,64 +414,160 @@ func TestListMoviesHandler(t *testing.T) {
 		}
 		tc.requestHeader["Authorization"] = "Bearer " + authToken
 		tc.requestMethodType = http.MethodGet
-		testHandler(t, app, tc)
+		testHandler(t, ts, tc)
 	}
 }
 
-func TestUnauthenticatedRequests(t *testing.T) {
+func TestUnauthenticatedRequests_ShouldBeRestricted(t *testing.T) {
+	ts := newTestServer(t)
+
 	testcases := []handlerTestcase{
 		{
-			name:                   "Create movie",
-			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodPost,
-			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "authentication required",
-			},
+			name:              "Create movie",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodPost,
 		},
 		{
-			name:                   "Show movie",
-			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodGet,
-			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "authentication required",
-			},
+			name:              "Show movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodGet,
 		},
 		{
-			name:                   "Update movie",
-			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodPatch,
-			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "authentication required",
-			},
+			name:              "Update movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodPatch,
 		},
 		{
-			name:                   "Delete movie",
-			requestUrlPath:         "/v1/movies/1",
-			requestMethodType:      http.MethodDelete,
-			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "authentication required",
-			},
+			name:              "Delete movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodDelete,
 		},
 		{
-			name:                   "List movies",
-			requestUrlPath:         "/v1/movies",
-			requestMethodType:      http.MethodGet,
-			wantResponseStatusCode: http.StatusUnauthorized,
-			wantResponse: map[string]string{
-				"error": "authentication required",
-			},
+			name:              "List movies",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodGet,
 		},
 	}
 
-	app := newTestApplication(nil)
 	for _, tc := range testcases {
 		tc.wantResponse = errorResponse{
 			Error: "you must be authenticated to access this resource",
 		}
-		testHandler(t, app, tc)
+		tc.wantResponseStatusCode = http.StatusUnauthorized
+		testHandler(t, ts, tc)
+	}
+}
+
+func TestNonActivatedUser_ShouldBeRestricted(t *testing.T) {
+	ts := newTestServer(t)
+	tokenNonActive := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234", activated: false, authenticated: true,
+	})
+
+	testcases := []handlerTestcase{
+		{
+			name:              "Create movie",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodPost,
+		},
+		{
+			name:              "Show movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodGet,
+		},
+		{
+			name:              "Update movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodPatch,
+		},
+		{
+			name:              "Delete movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodDelete,
+		},
+		{
+			name:              "List movies",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodGet,
+		},
+	}
+
+	for _, tc := range testcases {
+		tc.wantResponse = errorResponse{
+			Error: "your user account must be activated to access this resource",
+		}
+		tc.wantResponseStatusCode = http.StatusForbidden
+		if tc.requestHeader == nil {
+			tc.requestHeader = make(map[string]string)
+		}
+		tc.requestHeader["Authorization"] = "Bearer " + tokenNonActive
+		testHandler(t, ts, tc)
+	}
+}
+
+func TestUserWithoutPermissions_ShouldBeRestricted(t *testing.T) {
+	ts := newTestServer(t)
+
+	tokenWithoutReadPerm := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:write"},
+	})
+
+	tokenWithoutWritePerm := ts.insertUser(t, dummyUser{
+		name: "Bob", email: "bob@gmail.com", password: "pa55word1234",
+		activated: true, authenticated: true,
+		permCodes: []string{"movies:read"},
+	})
+
+	testcases := []handlerTestcase{
+		{
+			name:              "Create movie",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodPost,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + tokenWithoutWritePerm,
+			},
+		},
+		{
+			name:              "Show movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodGet,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + tokenWithoutReadPerm,
+			},
+		},
+		{
+			name:              "Update movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodPatch,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + tokenWithoutWritePerm,
+			},
+		},
+		{
+			name:              "Delete movie",
+			requestUrlPath:    "/v1/movies/1",
+			requestMethodType: http.MethodDelete,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + tokenWithoutWritePerm,
+			},
+		},
+		{
+			name:              "List movies",
+			requestUrlPath:    "/v1/movies",
+			requestMethodType: http.MethodGet,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + tokenWithoutReadPerm,
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		tc.wantResponse = errorResponse{
+			Error: "your user account doesn't have the necessary permissions to access this resource",
+		}
+		tc.wantResponseStatusCode = http.StatusForbidden
+		testHandler(t, ts, tc)
 	}
 }

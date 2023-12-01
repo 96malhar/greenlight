@@ -36,6 +36,7 @@ func TestHealthcheckHandler(t *testing.T) {
 		wantResponseStatusCode: http.StatusMethodNotAllowed,
 	}
 
-	testHandler(t, newTestApplication(nil), validResponseTC)
-	testHandler(t, newTestApplication(nil), methodNotAllowedTC)
+	ts := newTestServer(t)
+	testHandler(t, ts, validResponseTC)
+	testHandler(t, ts, methodNotAllowedTC)
 }

@@ -19,9 +19,7 @@ type handlerTestcase struct {
 	additionalChecks       []func(t *testing.T)
 }
 
-func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
-	ts := newTestServer(app.routes())
-
+func testHandler(t *testing.T, ts *testServer, testcases ...handlerTestcase) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.wantResponse != nil && reflect.TypeOf(tc.wantResponse).Kind() == reflect.Ptr {
@@ -29,6 +27,7 @@ func testHandler(t *testing.T, app *application, testcases ...handlerTestcase) {
 			}
 
 			res, err := ts.executeRequest(tc.requestMethodType, tc.requestUrlPath, tc.requestBody, tc.requestHeader)
+			defer res.Body.Close()
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantResponseStatusCode, res.StatusCode, "response status codes do not match")

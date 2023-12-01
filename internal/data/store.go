@@ -32,16 +32,23 @@ type TokenStoreInterface interface {
 	DeleteAllForUser(scope string, userID int64) error
 }
 
+type PermissionStoreInterface interface {
+	GetAllForUser(userID int64) (Permissions, error)
+	AddForUser(userID int64, codes ...string) error
+}
+
 type ModelStore struct {
-	Movies MovieStoreInterface
-	Users  UserStoreInterface
-	Tokens TokenStoreInterface
+	Movies      MovieStoreInterface
+	Users       UserStoreInterface
+	Tokens      TokenStoreInterface
+	Permissions PermissionStoreInterface
 }
 
 func NewModelStore(db *sql.DB) ModelStore {
 	return ModelStore{
-		Movies: MovieStore{db: db},
-		Users:  UserStore{db: db},
-		Tokens: TokenStore{db: db},
+		Movies:      MovieStore{db: db},
+		Users:       UserStore{db: db},
+		Tokens:      TokenStore{db: db},
+		Permissions: PermissionStore{db: db},
 	}
 }

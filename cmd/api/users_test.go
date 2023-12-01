@@ -21,11 +21,9 @@ type userResponse struct {
 }
 
 func TestRegisterUserHandler_ValidRequest(t *testing.T) {
-	db := newTestDB(t)
+	ts := newTestServer(t)
 	mailer := &mockMailer{}
-	app := newTestApplication(db)
-	app.mailer = mailer
-	ts := newTestServer(app.routes())
+	ts.app.mailer = mailer
 
 	res, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
 	require.NoError(t, err)
@@ -48,12 +46,15 @@ func TestRegisterUserHandler_ValidRequest(t *testing.T) {
 }
 
 func TestRegisterUserHandler_InvalidRequest(t *testing.T) {
-	db := newTestDB(t)
+	ts := newTestServer(t)
 
-	// seed users table with a user
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), false)
-
-	app := newTestApplication(db)
+	// Insert a seed user
+	alice := dummyUser{
+		name:     "Alice",
+		email:    "alice@gmail.com",
+		password: "pa55word1234",
+	}
+	ts.insertUser(t, alice)
 
 	testcases := []handlerTestcase{
 		{
@@ -94,15 +95,13 @@ func TestRegisterUserHandler_InvalidRequest(t *testing.T) {
 		},
 	}
 
-	testHandler(t, app, testcases...)
+	testHandler(t, ts, testcases...)
 }
 
 func TestActivateUserHandler_ValidRequest(t *testing.T) {
-	app := newTestApplication(newTestDB(t))
 	mailer := &mockMailer{}
-	app.mailer = mailer
-
-	ts := newTestServer(app.routes())
+	ts := newTestServer(t)
+	ts.app.mailer = mailer
 
 	// Register a user
 	_, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
@@ -166,6 +165,5 @@ func TestActivateUserHandler_InvalidRequest(t *testing.T) {
 		},
 	}
 
-	app := newTestApplication(newTestDB(t))
-	testHandler(t, app, testcases...)
+	testHandler(t, newTestServer(t), testcases...)
 }

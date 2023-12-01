@@ -16,8 +16,7 @@ type authenticationTokenResponse struct {
 }
 
 func TestCreateAuthenticationTokenHandler_ValidCredentials(t *testing.T) {
-	app := newTestApplication(newTestDB(t))
-	ts := newTestServer(app.routes())
+	ts := newTestServer(t)
 
 	// Create a new user
 	_, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
@@ -40,8 +39,7 @@ func TestCreateAuthenticationTokenHandler_ValidCredentials(t *testing.T) {
 }
 
 func TestCreateAuthenticationTokenHandler_InvalidCredentials(t *testing.T) {
-	app := newTestApplication(newTestDB(t))
-	ts := newTestServer(app.routes())
+	ts := newTestServer(t)
 
 	// Create a new user
 	_, err := ts.executeRequest(http.MethodPost, "/v1/users", `{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}`, nil)
@@ -104,5 +102,5 @@ func TestCreateAuthenticationTokenHandler_InvalidCredentials(t *testing.T) {
 		},
 	}
 
-	testHandler(t, app, testcases...)
+	testHandler(t, ts, testcases...)
 }

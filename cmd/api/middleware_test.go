@@ -1,10 +1,8 @@
 package main
 
 import (
-	"github.com/96malhar/greenlight/internal/data"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,13 +72,8 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	db := newTestDB(t)
-	app := newTestApplication(db)
-
-	// seed users table with a user
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), false)
-	user, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
-	require.NoError(t, err)
+	ts := newTestServer(t)
+	app := ts.app
 
 	// Set up the router with the authentication middleware.
 	router := chi.NewRouter()
@@ -89,101 +82,98 @@ func TestAuthenticate(t *testing.T) {
 	// add a test endpoint that requires authentication
 	router.Get("/test-auth", func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
-		anonymousUser := "false"
-		if user.IsAnonymous() {
-			anonymousUser = "true"
+		message := "This is an anonymous user."
+		if !user.IsAnonymous() {
+			message = "This is a logged in user."
 		}
-		w.Header().Set("AnonymousUser", anonymousUser)
-		w.WriteHeader(http.StatusOK)
+		app.writeJSON(w, http.StatusOK, envelope{"message": message}, nil)
 	})
 
-	validToken, err := app.modelStore.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
-	require.NoError(t, err)
+	ts.router = router
 
-	expiredToken, err := app.modelStore.Tokens.New(user.ID, -1*time.Hour, data.ScopeAuthentication)
-	require.NoError(t, err)
+	validToken := ts.insertUser(t, dummyUser{
+		name: "Alice", email: "alice@gmail.com", password: "pa55word1234", activated: true, authenticated: true, authTTL: 1 * time.Hour,
+	})
 
-	testcases := []struct {
-		name                string
-		requestHeaders      map[string]string
-		wantStatusCode      int
-		wantResponseHeaders map[string]string
-	}{
+	expiredToken := ts.insertUser(t, dummyUser{
+		name: "Bob", email: "bob@gmail.com", password: "pa55word1234", activated: true, authenticated: true, authTTL: -1 * time.Hour,
+	})
+
+	testcases := []handlerTestcase{
 		{
-			name:           "No Authorization header",
-			wantStatusCode: http.StatusOK,
-			wantResponseHeaders: map[string]string{
-				"AnonymousUser": "true",
+			name:                   "No Authorization header",
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: map[string]string{
+				"message": "This is an anonymous user.",
 			},
 		},
 		{
 			name: "Invalid Authorization header",
-			requestHeaders: map[string]string{
+			requestHeader: map[string]string{
 				"Authorization": "invalid format",
 			},
-			wantStatusCode: http.StatusUnauthorized,
-			wantResponseHeaders: map[string]string{
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: errorResponse{
+				Error: "invalid or missing authentication token",
+			},
+			wantResponseHeader: map[string]string{
 				"WWW-Authenticate": "Bearer",
 			},
 		},
 		{
 			name: "Invalid token",
-			requestHeaders: map[string]string{
+			requestHeader: map[string]string{
 				"Authorization": "Bearer 12345", // Actual tokens are 26 bytes long.
 			},
-			wantStatusCode: http.StatusUnauthorized,
-			wantResponseHeaders: map[string]string{
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: errorResponse{
+				Error: "invalid or missing authentication token",
+			},
+			wantResponseHeader: map[string]string{
 				"WWW-Authenticate": "Bearer",
 			},
 		},
 		{
 			name: "Unknown token",
-			requestHeaders: map[string]string{
+			requestHeader: map[string]string{
 				"Authorization": "Bearer 12345678901234567890123456",
 			},
-			wantStatusCode: http.StatusUnauthorized,
-			wantResponseHeaders: map[string]string{
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: errorResponse{
+				Error: "invalid or missing authentication token",
+			},
+			wantResponseHeader: map[string]string{
 				"WWW-Authenticate": "Bearer",
 			},
 		},
 		{
 			name: "Valid Authorization header",
-			requestHeaders: map[string]string{
-				"Authorization": "Bearer " + validToken.Plaintext,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + validToken,
 			},
-			wantStatusCode: http.StatusOK,
-			wantResponseHeaders: map[string]string{
-				"AnonymousUser": "false",
+			wantResponseStatusCode: http.StatusOK,
+			wantResponse: map[string]string{
+				"message": "This is a logged in user.",
 			},
 		},
 		{
 			name: "Expired token",
-			requestHeaders: map[string]string{
-				"Authorization": "Bearer " + expiredToken.Plaintext,
+			requestHeader: map[string]string{
+				"Authorization": "Bearer " + expiredToken,
 			},
-			wantStatusCode: http.StatusUnauthorized,
-			wantResponseHeaders: map[string]string{
+			wantResponseStatusCode: http.StatusUnauthorized,
+			wantResponse: errorResponse{
+				Error: "invalid or missing authentication token",
+			},
+			wantResponseHeader: map[string]string{
 				"WWW-Authenticate": "Bearer",
 			},
 		},
 	}
 
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			rr := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/test-auth", nil)
-
-			for k, v := range tc.requestHeaders {
-				req.Header.Set(k, v)
-			}
-
-			router.ServeHTTP(rr, req)
-
-			result := rr.Result()
-			assert.Equal(t, tc.wantStatusCode, result.StatusCode)
-			for k, v := range tc.wantResponseHeaders {
-				assert.Equal(t, v, result.Header.Get(k))
-			}
-		})
+		tc.requestMethodType = http.MethodGet
+		tc.requestUrlPath = "/test-auth"
+		testHandler(t, ts, tc)
 	}
 }

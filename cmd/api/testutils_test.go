@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
@@ -32,10 +31,33 @@ type validationErrorResponse struct {
 
 type testServer struct {
 	router http.Handler
+	app    *application
+	db     *sql.DB
 }
 
-func newTestServer(router http.Handler) *testServer {
-	return &testServer{router}
+type dummyUser struct {
+	name          string
+	email         string
+	password      string
+	activated     bool
+	authenticated bool
+	authTTL       time.Duration
+	permCodes     []string
+}
+
+func newTestServer(t *testing.T) *testServer {
+	testDb := newTestDB(t)
+	app := &application{
+		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		config:     config{env: "development"},
+		modelStore: data.NewModelStore(testDb),
+	}
+
+	return &testServer{
+		router: app.routes(),
+		app:    app,
+		db:     testDb,
+	}
 }
 
 func (ts *testServer) executeRequest(method, urlPath, body string, requestHeader map[string]string) (*http.Response, error) {
@@ -56,52 +78,90 @@ func (ts *testServer) executeRequest(method, urlPath, body string, requestHeader
 	return rr.Result(), nil
 }
 
+func (ts *testServer) insertMovie(t *testing.T, title string, year int, runtime data.Runtime, genres []string) {
+	m := &data.Movie{
+		Title:   title,
+		Year:    int32(year),
+		Runtime: runtime,
+		Genres:  genres,
+		Version: 1,
+	}
+	err := ts.app.modelStore.Movies.Insert(m)
+	require.NoError(t, err, "Failed to insert movie in the database")
+}
+
+func (ts *testServer) insertUser(t *testing.T, usr dummyUser) string {
+	hash, err := bcrypt.GenerateFromPassword([]byte(usr.password), 12)
+	require.NoError(t, err, "Failed to generate password hash")
+
+	query := `
+		INSERT INTO users (name, email, created_at, password_hash, activated)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`
+
+	var id int64
+	err = ts.db.QueryRow(query, usr.name, usr.email, time.Now().UTC(), hash, usr.activated).Scan(&id)
+	require.NoError(t, err, "Failed to insert user in the database")
+
+	if !usr.authenticated {
+		return ""
+	}
+
+	if usr.authTTL == 0 {
+		usr.authTTL = 24 * time.Hour
+	}
+	u, err := ts.app.modelStore.Users.GetByEmail(usr.email)
+	authToken, err := ts.app.modelStore.Tokens.New(u.ID, usr.authTTL, data.ScopeAuthentication)
+	require.NoError(t, err, "Failed to create auth token")
+
+	err = ts.app.modelStore.Permissions.AddForUser(id, usr.permCodes...)
+	require.NoError(t, err, "Failed to add permissions for user")
+
+	return authToken.Plaintext
+}
+
+func (ts *testServer) generateAuthToken(t *testing.T, userEmail string, ttl time.Duration) string {
+	usr, err := ts.app.modelStore.Users.GetByEmail(userEmail)
+	require.NoError(t, err)
+
+	authToken, err := ts.app.modelStore.Tokens.New(usr.ID, ttl, data.ScopeAuthentication)
+	require.NoError(t, err)
+	return authToken.Plaintext
+}
+
 func newTestDB(t *testing.T) *sql.DB {
 	randomSuffix := strings.Split(uuid.New().String(), "-")[0]
-	testDBName := fmt.Sprintf("greenlight_test_%s", randomSuffix)
+	testDbName := fmt.Sprintf("greenlight_test_%s", randomSuffix)
+	rootDsn := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
+	testDbDsn := fmt.Sprintf("%s dbname=%s", rootDsn, testDbName)
 
-	db := getRootDbConn(t)
-	_, err := db.Exec(fmt.Sprintf("CREATE DATABASE %s", testDBName))
-	require.NoErrorf(t, err, "Failed to create database %s", testDBName)
-	db.Close()
+	rootDb := getDbConn(t, rootDsn)
+	_, err := rootDb.Exec(fmt.Sprintf("CREATE DATABASE %s", testDbName))
+	require.NoErrorf(t, err, "Failed to create database %s", testDbName)
 
-	db = getDbConn(t, testDBName)
-	t.Logf("Connected to database %s", testDBName)
-	migrator := runMigrations(t, db, testDBName)
+	testDb := getDbConn(t, testDbDsn)
+	t.Logf("Connected to database %s", testDbName)
+	migrator := runMigrations(t, testDb, testDbName)
 
 	t.Cleanup(func() {
-		db.Close()
+		testDb.Close()
 		migrator.Close()
-		dropDB(t, testDBName)
+
+		_, err := rootDb.Exec(fmt.Sprintf("DROP DATABASE %s", testDbName))
+		require.NoErrorf(t, err, "Failed to drop database %s", testDbName)
+		t.Logf("Dropped database %s", testDbName)
+		rootDb.Close()
 	})
 
-	return db
+	return testDb
 }
 
-func getDbConn(t *testing.T, dbname string) *sql.DB {
-	dsn := fmt.Sprintf("host=localhost port=5432 user=postgres password=postgres sslmode=disable dbname=%s", dbname)
+func getDbConn(t *testing.T, dsn string) *sql.DB {
 	db, _ := sql.Open("postgres", dsn)
 	err := db.Ping()
 	require.NoErrorf(t, err, "Failed to connect to postgres with DSN = %s", dsn)
 
 	return db
-}
-
-func getRootDbConn(t *testing.T) *sql.DB {
-	dsn := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
-	db, _ := sql.Open("postgres", dsn)
-	err := db.Ping()
-	require.NoErrorf(t, err, "Failed to connect to postgres with DSN = %s", dsn)
-
-	return db
-}
-
-func dropDB(t *testing.T, dbName string) {
-	db := getRootDbConn(t)
-	defer db.Close()
-	_, err := db.Exec(fmt.Sprintf("DROP DATABASE %s", dbName))
-	require.NoErrorf(t, err, "Failed to drop database %s", dbName)
-	t.Logf("Dropped database %s", dbName)
 }
 
 func newTestApplication(db *sql.DB) *application {
@@ -110,13 +170,6 @@ func newTestApplication(db *sql.DB) *application {
 		config:     config{env: "development"},
 		modelStore: data.NewModelStore(db),
 	}
-}
-
-func readJsonResponse(t *testing.T, body io.Reader, dst any) {
-	dec := json.NewDecoder(body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(dst)
-	require.NoError(t, err)
 }
 
 func runMigrations(t *testing.T, db *sql.DB, dbName string) *migrate.Migrate {
@@ -133,37 +186,6 @@ func runMigrations(t *testing.T, db *sql.DB, dbName string) *migrate.Migrate {
 	return migrator
 }
 
-func insertMovie(t *testing.T, db *sql.DB, title string, year string, runtime int, genres []string) {
-	query := `
-        INSERT INTO movies (title, year, runtime, genres) 
-        VALUES ($1, $2, $3, $4)`
-
-	_, err := db.Exec(query, title, year, runtime, pq.Array(genres))
-	require.NoError(t, err, "Failed to insert movie in the database")
-}
-
-func insertUser(t *testing.T, db *sql.DB, name, email, plaintextPassword string, createdAt time.Time, activated bool) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
-	require.NoError(t, err)
-
-	query := `
-		INSERT INTO users (name, email, created_at, password_hash, activated)
-		VALUES ($1, $2, $3, $4, $5)`
-
-	_, err = db.Exec(query, name, email, createdAt, hash, activated)
-	require.NoError(t, err, "Failed to insert user in the database")
-}
-
-func generateAuthToken(t *testing.T, app *application, db *sql.DB) string {
-	insertUser(t, db, "Alice", "alice@gmail.com", "pa55word1234", time.Now().UTC(), true)
-	alice, err := app.modelStore.Users.GetByEmail("alice@gmail.com")
-	require.NoError(t, err)
-
-	authToken, err := app.modelStore.Tokens.New(alice.ID, 24*time.Hour, data.ScopeAuthentication)
-	require.NoError(t, err)
-	return authToken.Plaintext
-}
-
 // Mocks the mailer interface
 type mockMailer struct {
 	SendInvoked    bool
@@ -175,4 +197,11 @@ func (m *mockMailer) Send(recipient, templateFile string, data any) error {
 	d := data.(map[string]any)
 	m.TokenPlainText = d["activationToken"].(string)
 	return nil
+}
+
+func readJsonResponse(t *testing.T, body io.Reader, dst any) {
+	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(dst)
+	require.NoError(t, err)
 }
