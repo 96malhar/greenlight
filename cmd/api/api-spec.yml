@@ -1,8 +1,12 @@
 openapi: 3.0.1
+
 info:
   title: Greenlight API
   version: 1.0.0
   description: Greenlight API documentation
+  contact:
+    name: Malhar Khimsaria
+    email: 96malhar@gmail.com
 
 tags:
   - name: Health Check
@@ -115,7 +119,6 @@ paths:
           $ref: '#/components/responses/RateLimitErrorResponse'
         '500':
           $ref: '#/components/responses/ServerErrorResponse'
-
   /v1/movies/{id}:
     get:
       tags:
