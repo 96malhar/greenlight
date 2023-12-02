@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// createAuthenticationTokenHandler creates a new authentication token for a user.
 func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse the email and password from the request body.
 	var input struct {

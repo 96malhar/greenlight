@@ -47,10 +47,12 @@ func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
 }
 
+// badRequestResponse will be used to send a 400 Bad Request status code and JSON response to the client.
 func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
 }
 
+// failedValidationResponse will be used to send a 422 Unprocessable Entity status code and JSON response to the client.
 func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
@@ -60,16 +62,19 @@ func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Requ
 	app.errorResponse(w, r, http.StatusConflict, message)
 }
 
+// rateLimitExceededResponse will be used to send a 429 Too Many Requests status code and JSON response to the client.
 func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
 	message := "rate limit exceeded"
 	app.errorResponse(w, r, http.StatusTooManyRequests, message)
 }
 
+// invalidCredentialsResponse will be used to send a 401 Unauthorized status code and JSON response to the client.
 func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
 	message := "invalid authentication credentials"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 
+// invalidAuthenticationTokenResponse will be used to send a 401 Unauthorized status code and JSON response to the client.
 func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
 
@@ -77,16 +82,19 @@ func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 
+// authenticationRequiredResponse will be used to send a 401 Unauthorized status code and JSON response to the client.
 func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
 	message := "you must be authenticated to access this resource"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 
+// inactiveAccountResponse will be used to send a 403 Forbidden status code and JSON response to the client.
 func (app *application) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
 	message := "your user account must be activated to access this resource"
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
 
+// notPermittedResponse will be used to send a 403 Forbidden status code and JSON response to the client.
 func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
 	message := "your user account doesn't have the necessary permissions to access this resource"
 	app.errorResponse(w, r, http.StatusForbidden, message)

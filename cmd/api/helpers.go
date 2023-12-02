@@ -13,6 +13,7 @@ import (
 	"strings"
 )
 
+// readIDParam is a helper that reads a 'id' parameter from the URL and converts it to an integer.
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil || id < 1 {
@@ -22,6 +23,9 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
+// writeJSON is a helper that writes the provided data to the client in JSON format.
+// The status code will always be included, and the header map is optional (and may be nil).
+// It will also include the "Content-Type: application/json" header in the response.
 func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.Marshal(data)
 	if err != nil {
@@ -40,6 +44,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
+// readJSON is a helper that decodes the JSON request body into the provided destination.
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	// Use http.MaxBytesReader() to limit the size of the request body to 1MB.
 	maxBytes := 1_048_576

@@ -4,6 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// routes returns a new chi router containing the application routes.
 func (app *application) routes() *chi.Mux {
 	r := chi.NewRouter()
 

@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// serve is the entry point for the HTTP server.
 func (app *application) serve() error {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.config.port),

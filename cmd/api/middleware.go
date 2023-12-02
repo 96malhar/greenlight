@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// recoverPanic recovers from a panic, logs the details, and sends a 500 internal server error response.
 func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -26,6 +27,7 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 	})
 }
 
+// rateLimit is a middleware function which performs rate limiting using the token bucket algorithm.
 func (app *application) rateLimit(next http.Handler) http.Handler {
 	type client struct {
 		limiter  *rate.Limiter
@@ -87,6 +89,10 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	})
 }
 
+// authenticate extracts the authentication token from the request header, checks its validity, and looks up the
+// corresponding user record from the database. It sets the user record (or the anonymous user record if no
+// corresponding record was found) in the request context so that it can be retrieved by later handlers.
+// If an invalid or expired token is provided, or the token isn't found in the database, then a 401 Unauthorized response is sent to the client.
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Add the "Vary: Authorization" header to the response. This indicates to any
@@ -157,7 +163,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// check that a user is authenticated.
+// requireActivatedUser checks that a user is both authenticated. If the user is anonymous, then a 401 Unauthorized response is sent to the client.
 func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
@@ -171,7 +177,8 @@ func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler
 	})
 }
 
-// Checks that a user is both authenticated and activated.
+// requireActivatedUser checks that a user is both authenticated and activated. If the user is not authenticated, then a 401 Unauthorized response is sent to the client.
+// If the user is authenticated but has not activated their account, then a 403 Forbidden response is sent to the client.
 func (app *application) requireActivatedUser(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
@@ -189,7 +196,8 @@ func (app *application) requireActivatedUser(next http.Handler) http.Handler {
 	return app.requireAuthenticatedUser(http.HandlerFunc(fn))
 }
 
-// Checks that a user has the specified permission. If they don't, then a 403 Forbidden response is sent to the client.
+// requirePermission checks that a user is authenticated, activated and has the required permissions.
+// If not, a 403 Forbidden response is sent to the client.
 func (app *application) requirePermission(code string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
