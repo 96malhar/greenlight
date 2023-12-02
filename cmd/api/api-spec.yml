@@ -288,13 +288,13 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     UnauthorizedErrorResponse:
-      description: Unauthorized error response
+      description: Unauthorized error response. Returned when the request does not include a valid authentication token.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     ForbiddenErrorResponse:
-      description: Forbidden error response
+      description: Forbidden error response. Returned when the user is not activated or does not have the required permissions.
       content:
         application/json:
           schema:
