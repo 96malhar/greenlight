@@ -1,117 +1,403 @@
-openapi: 3.0.0
+openapi: 3.0.1
 info:
   title: Greenlight API
   version: 1.0.0
-  description: An API for managing movie metadata.
+  description: Greenlight API documentation
+
+tags:
+  - name: Health Check
+  - name: Movies
+  - name: Users and Authentication
 
 paths:
   /v1/healthcheck:
     get:
-      description: Get the health of the application.
+      tags:
+        - Health Check
+      description: Check the status of the API server
+      operationId: HealthCheck
       responses:
-        200:
-          description: The application is healthy.
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/HealthcheckResponse"
-              example:
-                status: available
-                system_info:
-                  environment: development
-                  version: 1.0.0
-
+        '200':
+          $ref: '#/components/responses/HealthCheckResponse'
+        '422':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
   /v1/movies:
     post:
-      description: Create a new movie.
+      tags:
+        - Movies
+      summary: Register a new movie
+      description: Register a new movie. Requires an authenticated user with 'movie:write' permission.
+      operationId: CreateMovie
+      parameters:
+        - $ref: '#/components/parameters/AuthHeader'
       requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateMovieRequest"
-            example:
-              title: The Godfather
-              year: 1972
-              runtime: 175 mins
-              genres: [ Crime, Drama ]
-
+        $ref: '#/components/requestBodies/CreateMovieRequest'
       responses:
-        201:
-          description: The movie was created successfully.
+        '201':
+          $ref: '#/components/responses/CreateMovieResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedErrorResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
+    get:
+      tags:
+        - Movies
+      summary: Retrieve a list of movies
+      description: Retrieve a list of movies. Requires an authenticated user with 'movie:read' permission.
+      operationId: ListMovies
+      parameters:
+        - $ref: '#/components/parameters/AuthHeader'
+        - name: title
+          in: query
+          description: Filter the list of movies by title
+          required: false
+          schema:
+            type: string
+        - name: genres
+          in: query
+          description: Filter the list of movies by genre
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sort
+          in: query
+          description: Sort the list of movies by the given criteria
+          required: false
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - year
+              - runtime
+              - -id
+              - -title
+              - -year
+              - -runtime
+        - name: page
+          in: query
+          description: Return a specific page of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000000
+        - name: page_size
+          in: query
+          description: The number of results to return per page
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          $ref: '#/components/responses/listMoviesResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedErrorResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
+
+  /v1/movies/{id}:
+    get:
+      tags:
+        - Movies
+      summary: Retrieve details for a specific movie
+      description: Retrieve details for a specific movie by ID. Requires an authenticated user with 'movie:read' permission.
+      operationId: ShowMovie
+      parameters:
+        - $ref: '#/components/parameters/AuthHeader'
+        - $ref: '#/components/parameters/MovieIdPathParam'
+      responses:
+        '200':
+          $ref: '#/components/responses/ShowMovieResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedErrorResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
+
+    patch:
+      tags:
+        - Movies
+      summary: Update a specific movie
+      description: Update a specific movie by ID. Requires an authenticated user with 'movie:write' permission.
+      operationId: UpdateMovie
+      parameters:
+        - $ref: '#/components/parameters/AuthHeader'
+        - $ref: '#/components/parameters/MovieIdPathParam'
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateMovieRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ShowMovieResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedErrorResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
+    delete:
+      tags:
+        - Movies
+      summary: Delete a specific movie
+      description: Delete a specific movie by ID. Requires an authenticated user with 'movie:write' permission.
+      operationId: DeleteMovie
+      parameters:
+        - $ref: '#/components/parameters/AuthHeader'
+        - $ref: '#/components/parameters/MovieIdPathParam'
+      responses:
+        '200':
+          description: Movie successfully deleted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MovieResponse"
-              example:
-                id: 1
-                title: The Godfather
-                year: 1972
-                runtime: 175 mins
-                genres: [ Crime, Drama ]
-                version: 1
-        400:
-          description: The request was invalid.
-        401:
-          description: The user is not authorized to create movies.
-        500:
-          description: An internal error occurred.
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedErrorResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorResponse'
 
 components:
-  schemas:
-    HealthcheckResponse:
-      type: object
-      properties:
-        status:
-          type: string
-        system_info:
-          type: object
-          properties:
-            environment:
-              type: string
-            version:
-              type: string
-
+  requestBodies:
     CreateMovieRequest:
-      type: object
-      required: [ title, year, runtime, genres ]
-      properties:
-        title:
-          type: string
-          description: The title of the movie.
-        year:
-          type: integer
-          description: The year the movie was released.
-        runtime:
-          type: string
-          description: The runtime of the movie in minutes.
-        genres:
-          type: array
-          items:
-            type: string
-          description: The genres of the movie.
+      description: A JSON object containing movie details
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MovieWithRequiredProperties'
 
-    MovieResponse:
+    UpdateMovieRequest:
+      description: A JSON object containing movie details
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Movie'
+  responses:
+    HealthCheckResponse:
+      description: Health check response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              system_info:
+                type: object
+                properties:
+                  environment:
+                    type: string
+                  version:
+                    type: string
+    CreateMovieResponse:
+      description: Response used to indicate that a movie was successfully registered
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              movie:
+                $ref: '#/components/schemas/MovieResponse'
+      headers:
+        Location:
+          schema:
+            type: string
+          description: The URL of the newly created movie
+    ShowMovieResponse:
+      description: Movie successfully retrieved
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              movie:
+                $ref: '#/components/schemas/MovieResponse'
+    listMoviesResponse:
+      description: List of movies successfully retrieved
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              movies:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovieResponse'
+              metadata:
+                $ref: '#/components/schemas/PaginationMetadata'
+    ServerErrorResponse:
+      description: Server error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimitErrorResponse:
+      description: Rate limit error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundErrorResponse:
+      description: Not found error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedErrorResponse:
+      description: Unauthorized error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenErrorResponse:
+      description: Forbidden error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationErrorResponse:
+      description: Validation error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+  schemas:
+    Movie:
+      description: The movie schema used in requests
       type: object
       properties:
-        id:
-          type: integer
-          description: The ID of the movie.
-          readOnly: true
         title:
           type: string
-          description: The title of the movie.
         year:
           type: integer
-          description: The year the movie was released.
+          description: The year must be greater than 1887 and less than the current year.
+          minimum: 1888
         runtime:
           type: string
-          description: The runtime of the movie in minutes Example.
+          description: The runtime in minutes. Example "170 mins".
         genres:
           type: array
           items:
             type: string
-          description: The genres of the movie.
-        version:
+          uniqueItems: true
+          minItems: 1
+          maxItems: 5
+    MovieWithRequiredProperties:
+      description: The movie schema used in requests that require all fields.
+      allOf:
+        - $ref: '#/components/schemas/Movie'
+        - required:
+            - title
+            - year
+            - runtime
+            - genres
+    MovieResponse:
+      description: The movie schema used in responses
+      allOf:
+        - $ref: '#/components/schemas/MovieWithRequiredProperties'
+        - required:
+            - id
+            - version
+        - properties:
+            id:
+              type: integer
+              format: int64
+              description: The movie ID
+            version:
+              type: integer
+              format: int32
+              description: The movie version
+    PaginationMetadata:
+      description: Metadata about the current page of results
+      type: object
+      properties:
+        current_page:
           type: integer
-          description: The version of the movie.
+          format: int32
+          description: The current page number
+        page_size:
+          type: integer
+          format: int32
+          description: The number of results per page
+        first_page:
+          type: integer
+          format: int32
+          description: The first page number
+        last_page:
+          type: integer
+          format: int32
+          description: The last page number
+        total_records:
+          type: integer
+          format: int32
+          description: The total number of records across all pages
+    ErrorResponse:
+      description: The error response schema
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+  parameters:
+    MovieIdPathParam:
+      name: id
+      in: path
+      description: The movie ID
+      required: true
+      schema:
+        type: integer
+        format: int64
+    AuthHeader:
+      name: Authorization
+      in: header
+      description: The authorization token. Must be in the format "Bearer {token}".
+      required: true
+      schema:
+        type: string
+      example:
+        Bearer 12345678901234567890123456

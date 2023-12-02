@@ -220,6 +220,14 @@ func TestUpdateMovieHandler(t *testing.T) {
 			},
 		},
 		{
+			name:                   "Empty request body",
+			requestUrlPath:         "/v1/movies/1",
+			wantResponseStatusCode: http.StatusBadRequest,
+			wantResponse: map[string]string{
+				"error": "body must not be empty",
+			},
+		},
+		{
 			name:                   "ID does not exist",
 			requestUrlPath:         "/v1/movies/5",
 			requestBody:            `{"genres": ["Romance"], "year": 1997}`,
