@@ -25,8 +25,7 @@ type PermissionStore struct {
 	db *sql.DB
 }
 
-// GetAllForUser returns all permission codes for a specific user in a
-// Permissions slice.
+// GetAllForUser returns all permission codes for a specific user in a Permissions slice.
 func (s PermissionStore) GetAllForUser(userID int64) (Permissions, error) {
 	query := `
         SELECT permissions.code
@@ -63,9 +62,7 @@ func (s PermissionStore) GetAllForUser(userID int64) (Permissions, error) {
 	return permissions, nil
 }
 
-// Add the provided permission codes for a specific user. Notice that we're using a
-// variadic parameter for the codes so that we can assign multiple permissions in a
-// single call.
+// AddForUser adds one or more permission codes for a specific user.
 func (s PermissionStore) AddForUser(userID int64, codes ...string) error {
 	query := `
         INSERT INTO users_permissions

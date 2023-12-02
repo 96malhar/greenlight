@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// The Filters struct contains the client-provided filters for paginated data.
 type Filters struct {
 	Page         int
 	PageSize     int
@@ -13,6 +14,7 @@ type Filters struct {
 	SortSafelist []string
 }
 
+// ValidateFilters checks the client-provided filters to ensure that they are valid.
 func ValidateFilters(v *validator.Validator, f Filters) {
 	v.Check(f.Page > 0, "page", "must be greater than zero")
 	v.Check(f.Page <= 10_000_000, "page", "must be a maximum of 10 million")
@@ -52,6 +54,7 @@ func (f Filters) offset() int {
 	return (f.Page - 1) * f.PageSize
 }
 
+// The PaginationMetadata struct contains metadata about the current page of results.
 type PaginationMetadata struct {
 	CurrentPage  int `json:"current_page,omitempty"`
 	PageSize     int `json:"page_size,omitempty"`
