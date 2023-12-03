@@ -1,9 +1,12 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
@@ -15,7 +18,6 @@ import (
 
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -32,7 +34,7 @@ type validationErrorResponse struct {
 type testServer struct {
 	router http.Handler
 	app    *application
-	db     *sql.DB
+	db     *pgxpool.Pool
 }
 
 type dummyUser struct {
@@ -100,7 +102,7 @@ func (ts *testServer) insertUser(t *testing.T, usr dummyUser) string {
 		RETURNING id`
 
 	var id int64
-	err = ts.db.QueryRow(query, usr.name, usr.email, time.Now().UTC(), hash, usr.activated).Scan(&id)
+	err = ts.db.QueryRow(context.Background(), query, usr.name, usr.email, time.Now().UTC(), hash, usr.activated).Scan(&id)
 	require.NoError(t, err, "Failed to insert user in the database")
 
 	if !usr.authenticated {
@@ -121,25 +123,24 @@ func (ts *testServer) insertUser(t *testing.T, usr dummyUser) string {
 	return authToken.Plaintext
 }
 
-func newTestDB(t *testing.T) *sql.DB {
+func newTestDB(t *testing.T) *pgxpool.Pool {
 	randomSuffix := strings.Split(uuid.New().String(), "-")[0]
 	testDbName := fmt.Sprintf("greenlight_test_%s", randomSuffix)
 	rootDsn := "host=localhost port=5432 user=postgres password=postgres sslmode=disable"
 	testDbDsn := fmt.Sprintf("%s dbname=%s", rootDsn, testDbName)
 
 	rootDb := getDbConn(t, rootDsn)
-	_, err := rootDb.Exec(fmt.Sprintf("CREATE DATABASE %s", testDbName))
+	_, err := rootDb.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", testDbName))
 	require.NoErrorf(t, err, "Failed to create database %s", testDbName)
 
 	testDb := getDbConn(t, testDbDsn)
 	t.Logf("Connected to database %s", testDbName)
-	migrator := runMigrations(t, testDb, testDbName)
+
+	runMigrations(t, testDb, testDbName)
 
 	t.Cleanup(func() {
 		testDb.Close()
-		migrator.Close()
-
-		_, err := rootDb.Exec(fmt.Sprintf("DROP DATABASE %s", testDbName))
+		_, err := rootDb.Exec(context.Background(), fmt.Sprintf("DROP DATABASE %s", testDbName))
 		require.NoErrorf(t, err, "Failed to drop database %s", testDbName)
 		t.Logf("Dropped database %s", testDbName)
 		rootDb.Close()
@@ -148,15 +149,17 @@ func newTestDB(t *testing.T) *sql.DB {
 	return testDb
 }
 
-func getDbConn(t *testing.T, dsn string) *sql.DB {
-	db, _ := sql.Open("postgres", dsn)
-	err := db.Ping()
+func getDbConn(t *testing.T, dsn string) *pgxpool.Pool {
+	db, _ := pgxpool.New(context.Background(), dsn)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := db.Ping(ctx)
 	require.NoErrorf(t, err, "Failed to connect to postgres with DSN = %s", dsn)
 
 	return db
 }
 
-func newTestApplication(db *sql.DB) *application {
+func newTestApplication(db *pgxpool.Pool) *application {
 	return &application{
 		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		config:     config{env: "development"},
@@ -164,8 +167,10 @@ func newTestApplication(db *sql.DB) *application {
 	}
 }
 
-func runMigrations(t *testing.T, db *sql.DB, dbName string) *migrate.Migrate {
-	migrationDriver, err := postgres.WithInstance(db, &postgres.Config{})
+func runMigrations(t *testing.T, pool *pgxpool.Pool, dbName string) {
+	t.Log("applying database migrations...")
+	db := stdlib.OpenDBFromPool(pool)
+	migrationDriver, err := pgx.WithInstance(db, &pgx.Config{})
 	require.NoError(t, err)
 
 	migrator, err := migrate.NewWithDatabaseInstance("file://../../migrations", dbName, migrationDriver)
@@ -175,7 +180,8 @@ func runMigrations(t *testing.T, db *sql.DB, dbName string) *migrate.Migrate {
 	require.NoError(t, err)
 
 	t.Log("database migrations applied")
-	return migrator
+	migrator.Close()
+	db.Close()
 }
 
 // Mocks the mailer interface

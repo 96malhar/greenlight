@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/96malhar/greenlight/internal/email"
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
 	"sync"
@@ -104,8 +103,8 @@ func parseConfig() config {
 	return cfg
 }
 
-func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
+func openDB(cfg config) (*pgxpool.Pool, error) {
+	db, err := pgxpool.New(context.Background(), cfg.db.dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +113,7 @@ func openDB(cfg config) (*sql.DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = db.PingContext(ctx)
+	err = db.Ping(ctx)
 	if err != nil {
 		return nil, err
 	}

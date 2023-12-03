@@ -2,8 +2,7 @@ package data
 
 import (
 	"context"
-	"database/sql"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -22,7 +21,7 @@ func (p Permissions) Include(code string) bool {
 }
 
 type PermissionStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // GetAllForUser returns all permission codes for a specific user in a Permissions slice.
@@ -37,7 +36,7 @@ func (s PermissionStore) GetAllForUser(userID int64) (Permissions, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, query, userID)
+	rows, err := s.db.Query(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +70,6 @@ func (s PermissionStore) AddForUser(userID int64, codes ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, query, userID, pq.Array(codes))
+	_, err := s.db.Exec(ctx, query, userID, codes)
 	return err
 }

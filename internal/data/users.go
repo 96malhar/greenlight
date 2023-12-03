@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/96malhar/greenlight/internal/validator"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -96,7 +98,7 @@ func ValidateUser(v *validator.Validator, user *User) {
 }
 
 type UserStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // Insert a new record in the database for the user. Note that the id, created_at and
@@ -114,10 +116,10 @@ func (s UserStore) Insert(user *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.Version)
+	err := s.db.QueryRow(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)`:
 			return ErrDuplicateEmail
 		default:
 			return err
@@ -140,14 +142,14 @@ func (s UserStore) GetByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := s.db.QueryRowContext(ctx, query, email).Scan(
+	err := s.db.QueryRow(ctx, query, email).Scan(
 		&user.ID, &user.CreatedAt, &user.Name, &user.Email,
 		&user.Password.hash, &user.Activated, &user.Version,
 	)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrRecordNotFound
 		default:
 			return nil, err
@@ -172,7 +174,7 @@ func (s UserStore) Update(user *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	err := s.db.QueryRow(ctx, query, args...).Scan(&user.Version)
 	if err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
@@ -207,14 +209,14 @@ func (s UserStore) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(
+	err := s.db.QueryRow(ctx, query, args...).Scan(
 		&user.ID, &user.CreatedAt, &user.Name,
 		&user.Email, &user.Password.hash, &user.Activated,
 		&user.Version,
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrRecordNotFound
 		default:
 			return nil, err

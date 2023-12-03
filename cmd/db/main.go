@@ -1,13 +1,14 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"time"
 )
 
 var dbUser, dbName, dbPassword string
@@ -34,7 +35,9 @@ func setupDB() *cobra.Command {
 		Use:   "setup",
 		Short: "Initializes the database and the database user used by the Greenlight app",
 		Run: func(cmd *cobra.Command, args []string) {
-			db, err := sql.Open("postgres", superUserDSN)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			db, err := pgx.Connect(ctx, superUserDSN)
 			must(err)
 			Exec(db, fmt.Sprintf("CREATE DATABASE %s", dbName))
 			logger.Info("Created database", "name", dbName)
@@ -54,7 +57,9 @@ func teardown() *cobra.Command {
 		Use:   "teardown",
 		Short: "Tears down the database and the database user used by the Greenlight app",
 		Run: func(cmd *cobra.Command, args []string) {
-			db, err := sql.Open("postgres", superUserDSN)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			db, err := pgx.Connect(ctx, superUserDSN)
 			must(err)
 
 			Exec(db, fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
@@ -74,7 +79,9 @@ func must(err error) {
 	}
 }
 
-func Exec(db *sql.DB, query string) {
-	_, err := db.Exec(query)
+func Exec(db *pgx.Conn, query string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := db.Exec(ctx, query)
 	must(err)
 }

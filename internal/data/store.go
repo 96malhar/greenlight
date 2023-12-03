@@ -1,8 +1,8 @@
 package data
 
 import (
-	"database/sql"
 	"errors"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -58,7 +58,7 @@ type ModelStore struct {
 	Permissions PermissionStoreInterface
 }
 
-func NewModelStore(db *sql.DB) ModelStore {
+func NewModelStore(db *pgxpool.Pool) ModelStore {
 	return ModelStore{
 		Movies:      MovieStore{db: db},
 		Users:       UserStore{db: db},

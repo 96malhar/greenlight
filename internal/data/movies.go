@@ -2,11 +2,11 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/96malhar/greenlight/internal/validator"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -40,7 +40,7 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 
 // MovieStore wraps a sql.DB connection pool.
 type MovieStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // Insert adds a new record in the movies table.
@@ -50,12 +50,12 @@ func (m MovieStore) Insert(movie *Movie) error {
         VALUES ($1, $2, $3, $4)
         RETURNING id, created_at, version`
 
-	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+	args := []any{movie.Title, movie.Year, movie.Runtime, movie.Genres}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return m.db.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+	return m.db.QueryRow(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 // Get fetches a record for a movie based on the id
@@ -74,15 +74,15 @@ func (m MovieStore) Get(id int64) (*Movie, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.db.QueryRowContext(ctx, query, id).Scan(
+	err := m.db.QueryRow(ctx, query, id).Scan(
 		&movie.ID, &movie.CreatedAt,
 		&movie.Title, &movie.Year,
-		&movie.Runtime, pq.Array(&movie.Genres), &movie.Version,
+		&movie.Runtime, &movie.Genres, &movie.Version,
 	)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrRecordNotFound
 		default:
 			return nil, err
@@ -100,15 +100,15 @@ func (m MovieStore) Update(movie *Movie) error {
         WHERE id = $5 AND version = $6
         RETURNING version`
 
-	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID, movie.Version}
+	args := []any{movie.Title, movie.Year, movie.Runtime, movie.Genres, movie.ID, movie.Version}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.db.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
+	err := m.db.QueryRow(ctx, query, args...).Scan(&movie.Version)
 
 	switch {
-	case errors.Is(err, sql.ErrNoRows):
+	case errors.Is(err, pgx.ErrNoRows):
 		return ErrEditConflict
 	default:
 		return err
@@ -128,16 +128,12 @@ func (m MovieStore) Delete(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := m.db.ExecContext(ctx, query, id)
+	result, err := m.db.Exec(ctx, query, id)
 	if err != nil {
 		return err
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return ErrRecordNotFound
 	}
@@ -161,9 +157,9 @@ func (m MovieStore) GetAll(title string, genres []string, filters Filters) ([]*M
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{title, pq.Array(genres), filters.limit(), filters.offset()}
+	args := []any{title, genres, filters.limit(), filters.offset()}
 
-	rows, err := m.db.QueryContext(ctx, query, args...)
+	rows, err := m.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, PaginationMetadata{}, err
 	}
@@ -183,7 +179,7 @@ func (m MovieStore) GetAll(title string, genres []string, filters Filters) ([]*M
 			&movie.Title,
 			&movie.Year,
 			&movie.Runtime,
-			pq.Array(&movie.Genres),
+			&movie.Genres,
 			&movie.Version,
 		)
 		if err != nil {

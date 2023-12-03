@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base32"
 	"github.com/96malhar/greenlight/internal/validator"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -70,7 +70,7 @@ func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
 
 // TokenStore wraps a sql.DB connection pool.
 type TokenStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // New generates and stores a new token for a specific user and scope.
@@ -95,7 +95,7 @@ func (m TokenStore) Insert(token *Token) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.db.ExecContext(ctx, query, args...)
+	_, err := m.db.Exec(ctx, query, args...)
 	return err
 }
 
@@ -108,6 +108,6 @@ func (m TokenStore) DeleteAllForUser(scope string, userID int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.db.ExecContext(ctx, query, scope, userID)
+	_, err := m.db.Exec(ctx, query, scope, userID)
 	return err
 }
