@@ -3,4 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/96malhar/greenlight)](https://goreportcard.com/report/github.com/96malhar/greenlight)
 
 
-Greenlight API server from [Let’s Go Further by Alex Edwards](https://lets-go-further.alexedwards.net)
+# Greenlight API 
+This project is an Go API server from [Let’s Go Further by Alex Edwards](https://lets-go-further.alexedwards.net)
+
+The API spec can be found [here](https://96malhar.github.io/greenlight/)
