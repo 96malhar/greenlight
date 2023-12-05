@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"reflect"
 	"testing"
 )
@@ -16,7 +17,7 @@ type handlerTestcase struct {
 	wantResponseStatusCode int
 	wantResponse           any
 	wantResponseHeader     map[string]string
-	additionalChecks       []func(t *testing.T)
+	additionalChecks       []func(t *testing.T, res *http.Response)
 }
 
 func testHandler(t *testing.T, ts *testServer, testcases ...handlerTestcase) {
@@ -49,7 +50,7 @@ func testHandler(t *testing.T, ts *testServer, testcases ...handlerTestcase) {
 			}
 
 			for _, check := range tc.additionalChecks {
-				check(t)
+				check(t, res)
 			}
 		})
 	}

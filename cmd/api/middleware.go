@@ -233,6 +233,7 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 		w.Header().Add("Vary", "Origin")
 
 		origin := r.Header.Get("Origin")
+		var allowOrigin bool
 
 		// Only run this if there's an Origin request header present.
 		if origin != "" {
@@ -245,9 +246,22 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 					// response header with the request origin as the value and break
 					// out of the loop.
 					w.Header().Set("Access-Control-Allow-Origin", origin)
+					allowOrigin = true
 					break
 				}
 			}
+		}
+
+		// Handle preflight CORS requests.
+		if allowOrigin && r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+			// Set the "Access-Control-Allow-Methods" and "Access-Control-Allow-Headers"
+			// response headers.
+			w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			// Return a 200 OK status with an empty response body.
+			w.WriteHeader(http.StatusOK)
+			return
 		}
 
 		// Call the next handler in the chain.
