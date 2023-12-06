@@ -26,7 +26,7 @@ DELETE localhost:4000/v1/movies/1
 POST localhost:4000/v1/users
 Content-Type: application/json
 
-{"name":"Bob", "email":"bob@gmail.com", "password":"5ecret1234"}
+{"name":"Alice", "email":"alice@example.com", "password":"pa55word"}
 
 ### Activate a specific user
 PUT localhost:4000/v1/users/activated
