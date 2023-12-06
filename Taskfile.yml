@@ -51,6 +51,11 @@ tasks:
       - echo "Running down migrations..."
       - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} down
 
+  server:help:
+    desc: Show help for the Greenlight API server
+    cmds:
+      - go run ./cmd/api -help
+
   server:start:
     desc: Start the Greenlight API server
     cmds:
