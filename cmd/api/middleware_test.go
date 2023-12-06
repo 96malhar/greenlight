@@ -198,18 +198,14 @@ func TestEnableCORS_SimpleRequests(t *testing.T) {
 			requestHeader: map[string]string{
 				"Origin": "https://malicious.com",
 			},
-			additionalChecks: []func(t *testing.T, res *http.Response){
-				func(t *testing.T, res *http.Response) {
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
-				},
+			additionalChecks: func(t *testing.T, res *http.Response) {
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
 			},
 		},
 		{
 			name: "Request without Origin header",
-			additionalChecks: []func(t *testing.T, res *http.Response){
-				func(t *testing.T, res *http.Response) {
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
-				},
+			additionalChecks: func(t *testing.T, res *http.Response) {
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
 			},
 		},
 	}
@@ -247,12 +243,10 @@ func TestEnableCORS_PreflightRequests(t *testing.T) {
 				"Access-Control-Request-Method": "GET",
 			},
 			wantResponseStatusCode: http.StatusMethodNotAllowed,
-			additionalChecks: []func(t *testing.T, res *http.Response){
-				func(t *testing.T, res *http.Response) {
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
-				},
+			additionalChecks: func(t *testing.T, res *http.Response) {
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
 			},
 		},
 		{
@@ -261,12 +255,10 @@ func TestEnableCORS_PreflightRequests(t *testing.T) {
 				"Access-Control-Request-Method": "GET",
 			},
 			wantResponseStatusCode: http.StatusMethodNotAllowed,
-			additionalChecks: []func(t *testing.T, res *http.Response){
-				func(t *testing.T, res *http.Response) {
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
-				},
+			additionalChecks: func(t *testing.T, res *http.Response) {
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Origin"))
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
 			},
 		},
 		{
@@ -278,11 +270,9 @@ func TestEnableCORS_PreflightRequests(t *testing.T) {
 			wantResponseHeader: map[string]string{
 				"Access-Control-Allow-Origin": "https://example.com",
 			},
-			additionalChecks: []func(t *testing.T, res *http.Response){
-				func(t *testing.T, res *http.Response) {
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
-					assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
-				},
+			additionalChecks: func(t *testing.T, res *http.Response) {
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Methods"))
+				assert.Equal(t, "", res.Header.Get("Access-Control-Allow-Headers"))
 			},
 		},
 	}
@@ -300,8 +290,8 @@ func TestEnableCORS_PreflightRequests(t *testing.T) {
 				assert.Equalf(t, wantVal, gotVal, "Header values do not match for %s", key)
 			}
 
-			for _, check := range tc.additionalChecks {
-				check(t, res)
+			if tc.additionalChecks != nil {
+				tc.additionalChecks(t, res)
 			}
 
 			assert.NoError(t, res.Body.Close())
