@@ -1,6 +1,6 @@
 version: '3'
 
-dotenv: [env/.dev.env]
+dotenv: [ env/.dev.env ]
 
 tasks:
   docker:postgres:start:
@@ -42,14 +42,14 @@ tasks:
   db:migrations:up:
     desc: Runs up migrations
     cmds:
-     - echo "Running up migrations..."
-     - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} up
+      - echo "Running up migrations..."
+      - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} up
 
   db:migrations:down:
     desc: Runs down migrations
     cmds:
       - echo "Running down migrations..."
-      - migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} down
+      - echo "y" | migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} down
 
   server:help:
     desc: Show help for the Greenlight API server
@@ -60,15 +60,6 @@ tasks:
     desc: Start the Greenlight API server
     cmds:
       - go run ./cmd/api {{.CLI_ARGS}}
-
-  smoketest:
-    desc: Run the smoke test
-    dotenv: [env/.smoketest.env]
-    cmds:
-      - defer: go run ./cmd/db teardown
-      - go run ./cmd/db setup
-      - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
-      - ./smoke_test.sh
 
   audit:
     desc: Run quality control audits
@@ -84,7 +75,28 @@ tasks:
       - echo "Checking vulnerabilities..."
       - govulncheck ./...
 
+  smoketest:
+    desc: Run the smoke test
+    dotenv: [ env/.smoketest.env ]
+    cmds:
+      - defer: go run ./cmd/db teardown
+      - go run ./cmd/db setup
+      - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
+      - ./smoke_test.sh
+
   test:
     desc: Run all tests
     cmds:
       - go test -json -v --coverprofile=coverage.out ./... 2>&1 | gotestfmt -hide "successful-tests, empty-packages"
+
+  loadtest:
+    desc: Run the load test
+    summary: Creates a fresh database, runs migrations, and runs the load test.
+      The command uses 'Hey' to perform the load test. It registers a new user and then repeatedly
+      invokes the /v1/tokens/authentication endpoint to generate authentication tokens.
+    dotenv: [ env/.smoketest.env ]
+    cmds:
+      - defer: go run ./cmd/db teardown
+      - go run ./cmd/db setup
+      - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
+      - ./load_test.sh

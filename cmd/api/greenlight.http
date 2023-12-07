@@ -38,4 +38,4 @@ Content-Type: application/json
 POST localhost:4000/v1/tokens/authentication
 Content-Type: application/json
 
-{"email":"bob@gmail.com", "password":"5ecret1234"}
+{"email":"alice@example.com", "password":"pa55word"}

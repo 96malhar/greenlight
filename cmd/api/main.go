@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"expvar"
 	"flag"
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/96malhar/greenlight/internal/email"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +87,8 @@ func main() {
 		modelStore: data.NewModelStore(db),
 	}
 
+	monitorMetrics(db)
+
 	err = app.serve()
 	if err != nil {
 		logger.Error(err.Error())
@@ -129,6 +133,7 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	}
 	pgxConf.MaxConnIdleTime = cfg.db.maxIdleTime
 	pgxConf.MaxConns = int32(cfg.db.maxOpenConns)
+
 	db, err := pgxpool.NewWithConfig(context.Background(), pgxConf)
 	if err != nil {
 		return nil, err
@@ -143,4 +148,36 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	}
 
 	return db, nil
+}
+
+func monitorMetrics(pool *pgxpool.Pool) {
+	expvar.NewString("version").Set(version)
+
+	// Publish the number of active goroutines.
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+
+	//Publish the database connection pool statistics.
+	expvar.Publish("database", expvar.Func(func() any {
+		st := pool.Stat()
+		return map[string]any{
+			"maximum_pool_size":            st.MaxConns(),
+			"current_pool_size":            st.TotalConns(),
+			"current_idle_conns":           st.IdleConns(),
+			"current_constructing_conns":   st.ConstructingConns(),
+			"current_acquired_conns":       st.AcquiredConns(),
+			"total_acquired_conns":         st.AcquireCount(),
+			"total_starved_acquired_conns": st.EmptyAcquireCount(),
+			"total_acquire_cancelled":      st.CanceledAcquireCount(),
+			"total_acquired_duration":      st.AcquireDuration().Seconds(),
+			"total_idle_closed":            st.MaxIdleDestroyCount(),
+			"total_lifetime_closed":        st.MaxLifetimeDestroyCount(),
+		}
+	}))
+
+	// Publish the current Unix timestamp.
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return time.Now().Unix()
+	}))
 }

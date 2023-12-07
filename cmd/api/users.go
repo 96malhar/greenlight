@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/96malhar/greenlight/internal/validator"
 	"net/http"
@@ -73,7 +74,8 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		err = app.mailer.Send(user.Email, "user_welcome.tmpl", userData)
 		if err != nil {
-			app.logger.Error(err.Error())
+			msg := fmt.Sprintf("Failed to send welcome email for new user (%s). Err = %s", user.Email, err.Error())
+			app.logger.Error(msg)
 		}
 	})
 

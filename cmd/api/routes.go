@@ -1,7 +1,9 @@
 package main
 
 import (
+	"expvar"
 	"github.com/go-chi/chi/v5"
+	"net/http"
 )
 
 // routes returns a new chi router containing the application routes.
@@ -28,6 +30,7 @@ func (app *application) routes() *chi.Mux {
 	})
 
 	r.Post("/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+	r.Method(http.MethodGet, "/debug/vars", expvar.Handler())
 
 	return r
 }
