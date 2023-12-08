@@ -162,7 +162,7 @@ func getDbConn(t *testing.T, dsn string) *pgxpool.Pool {
 func newTestApplication(db *pgxpool.Pool) *application {
 	return &application{
 		logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
-		config:     config{env: "development"},
+		config:     config{env: "development", publishMetrics: false},
 		modelStore: data.NewModelStore(db),
 	}
 }

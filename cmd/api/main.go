@@ -40,6 +40,7 @@ type config struct {
 	cors struct {
 		trustedOrigins []string
 	}
+	publishMetrics bool
 }
 
 func (c config) LogValue() slog.Value {
@@ -120,6 +121,8 @@ func parseConfig() config {
 		cfg.cors.trustedOrigins = strings.Fields(val)
 		return nil
 	})
+
+	cfg.publishMetrics = true
 
 	flag.Parse()
 

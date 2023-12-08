@@ -2,12 +2,15 @@ package main
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/96malhar/greenlight/internal/validator"
+	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/time/rate"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -266,5 +269,33 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) metrics(next http.Handler) http.Handler {
+	// Initialize the new expvar variables when the middleware chain is first built.
+	var (
+		totalRequestsReceived           = expvar.NewInt("total_requests_received")
+		totalResponsesSent              = expvar.NewInt("total_responses_sent")
+		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time_μs")
+		totalResponsesSentByStatus      = expvar.NewMap("total_responses_sent_by_status")
+	)
+
+	// The following code will be run for every request...
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		totalRequestsReceived.Add(1)
+
+		// Wrap the response writer in a proxy that can capture the status code.
+		wr := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+
+		next.ServeHTTP(wr, r)
+
+		totalResponsesSent.Add(1)
+		totalResponsesSentByStatus.Add(strconv.Itoa(wr.Status()), 1)
+
+		duration := time.Since(start).Microseconds()
+		totalProcessingTimeMicroseconds.Add(duration)
 	})
 }

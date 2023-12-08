@@ -12,6 +12,11 @@ func (app *application) routes() *chi.Mux {
 
 	r.NotFound(app.notFoundResponse)
 	r.MethodNotAllowed(app.methodNotAllowedResponse)
+
+	if app.config.publishMetrics {
+		r.Use(app.metrics)
+	}
+
 	r.Use(app.recoverPanic, app.enableCORS, app.rateLimit, app.authenticate)
 
 	r.Get("/v1/healthcheck", app.healthcheckHandler)
