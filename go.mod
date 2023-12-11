@@ -10,6 +10,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
+	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
 	golang.org/x/crypto v0.16.0
 	golang.org/x/time v0.5.0
 )
