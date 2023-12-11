@@ -56,6 +56,11 @@ tasks:
     cmds:
       - go run ./cmd/api -help
 
+  server:build:
+    desc: Build the Greenlight API server
+    cmds:
+      - go build -ldflags '-s' -o ./bin/api ./cmd/api
+
   server:start:
     desc: Start the Greenlight API server
     cmds:

@@ -12,10 +12,10 @@ cleanup() {
 
 setup() {
   # Build the Go binary
-  go build -o ./bin/server ./cmd/api
+  go build -o ./bin/api ./cmd/api
 
   # Start the web server in the background and discard all output
-  ./bin/server -limiter-enabled=false > /dev/null &
+  ./bin/api -limiter-enabled=false > /dev/null &
 
   # Capture the PID of the server process so we can kill it later
   serverPid=$!
