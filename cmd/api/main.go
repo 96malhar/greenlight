@@ -4,8 +4,10 @@ import (
 	"context"
 	"expvar"
 	"flag"
+	"fmt"
 	"github.com/96malhar/greenlight/internal/data"
 	"github.com/96malhar/greenlight/internal/email"
+	"github.com/96malhar/greenlight/internal/vcs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
@@ -15,7 +17,7 @@ import (
 	"time"
 )
 
-const version = "1.0.0"
+var version = vcs.Version()
 
 type config struct {
 	port int
@@ -122,9 +124,17 @@ func parseConfig() config {
 		return nil
 	})
 
+	// Create a new version boolean flag with the default value of false.
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	cfg.publishMetrics = true
 
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	return cfg
 }

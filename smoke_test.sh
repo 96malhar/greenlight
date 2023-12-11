@@ -26,8 +26,16 @@ sleep 2
 # Make a GET request to the server and check the response
 RESPONSE=$(curl http://localhost:4000/v1/healthcheck)
 
+# Get the last git commit hash
+VERSION=$(git rev-parse HEAD)
+
+# check if there are any non committed changes
+if [[ $(git status -s) ]]; then
+  VERSION="$VERSION-dirty"
+fi
+
 # Check if the response contains the expected string
-EXPECTED='{"status":"available","system_info":{"environment":"development","version":"1.0.0"}}'
+EXPECTED="{\"status\":\"available\",\"system_info\":{\"environment\":\"development\",\"version\":\"$VERSION\"}}"
 if [[ $RESPONSE != "$EXPECTED" ]]; then
   echo "Smoke test failed. Server did not respond as expected."
   echo "Expected: $EXPECTED"
