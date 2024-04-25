@@ -6,6 +6,10 @@ cleanup() {
 
   # Clean up the binary
   rm -rf ./bin
+
+  if [[ $SUCCESS == "true" ]]; then
+      echo "====Smoke test passed===="
+    fi
 }
 
 # Build the Go binary
@@ -34,6 +38,8 @@ if [[ $(git status -s) ]]; then
   VERSION="$VERSION-dirty"
 fi
 
+SUCCESS="false"
+
 # Check if the response contains the expected string
 EXPECTED="{\"status\":\"available\",\"system_info\":{\"environment\":\"development\",\"version\":\"$VERSION\"}}"
 if [[ $RESPONSE != "$EXPECTED" ]]; then
@@ -43,5 +49,5 @@ if [[ $RESPONSE != "$EXPECTED" ]]; then
   exit 1
 fi
 
-echo "=====SMOKE TEST PASSED====="
+SUCCESS="true"
 exit 0

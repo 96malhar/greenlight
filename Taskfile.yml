@@ -62,9 +62,16 @@ tasks:
       - go build -ldflags '-s' -o ./bin/api ./cmd/api
 
   server:start:
-    desc: Start the Greenlight API server
+    desc: Builds and starts the Greenlight API server
     cmds:
-      - go run ./cmd/api {{.CLI_ARGS}}
+      - task: server:build
+      - ./bin/api {{.CLI_ARGS}}
+
+  update:dependencies:
+    desc: Update dependencies
+    cmds:
+      - go get -u -t ./...
+      - go mod tidy
 
   audit:
     desc: Run quality control audits
