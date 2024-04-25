@@ -1,3 +1,5 @@
 ignore:
   - "cmd/api/main.go"
   - "cmd/api/server.go"
+  - "cmd/db"
+  - "cmd/examples"
