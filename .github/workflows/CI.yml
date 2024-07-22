@@ -28,8 +28,8 @@ jobs:
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b $HOME/bin
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Setup gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
+      - name: Setup gotestsum
+        run: go install gotest.tools/gotestsum@v1.12.0
 
       - name: Install golang-migrate
         run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.16.2
