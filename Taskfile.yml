@@ -99,7 +99,12 @@ tasks:
   test:
     desc: Run all tests
     cmds:
-      - gotestsum -- -coverprofile=coverage.out ./...
+      - gotestsum -- -coverprofile=coverage.out -coverpkg=./...  ./...
+
+  visualize:coverage:
+    desc: Visualize the code coverage
+    cmds:
+      - go tool cover -html=coverage.out
 
   loadtest:
     desc: Run the load test
