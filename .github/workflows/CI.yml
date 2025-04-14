@@ -18,7 +18,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22.x'
+          go-version: '1.24.x'
 
       - name: Build
         run: go build -v ./...
@@ -29,7 +29,7 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
 
       - name: Setup gotestsum
-        run: go install gotest.tools/gotestsum@v1.12.0
+        run: go install gotest.tools/gotestsum@v1.12.1
 
       - name: Install golang-migrate
         run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.16.2
