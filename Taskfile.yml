@@ -123,15 +123,3 @@ tasks:
     desc: Visualize the code coverage
     cmds:
       - go tool cover -html=coverage.out
-
-  loadtest:
-    desc: Run the load test
-    summary: Creates a fresh database, runs migrations, and runs the load test.
-      The command uses 'Hey' to perform the load test. It registers a new user and then repeatedly
-      invokes the /v1/tokens/authentication endpoint to generate authentication tokens.
-    dotenv: [ env/.smoketest.env ]
-    cmds:
-      - defer: go run ./cmd/db teardown
-      - go run ./cmd/db setup
-      - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
-      - ./load_test.sh
