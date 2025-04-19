@@ -1,6 +1,11 @@
 version: '3'
 
-dotenv: [ env/.dev.env ]
+vars:
+  DB_NAME: greenlight
+  SMOKETEST_DB_NAME: greenlight_smoketest
+
+env:
+  GREENLIGHT_DB_DSN: postgres://postgres:postgres@localhost:5432/{{.DB_NAME}}?sslmode=disable
 
 tasks:
   docker:postgres:start:
@@ -26,12 +31,12 @@ tasks:
   db:setup:
     desc: Setup the database and the database user used by the greenlight app
     cmds:
-      - go run ./cmd/db setup
+      - PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE {{.DB_NAME}};"
 
   db:teardown:
     desc: Teardown the database and the database user used by the greenlight app
     cmds:
-      - go run ./cmd/db teardown
+      - PGPASSWORD=postgres psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS {{.DB_NAME}};"
 
   db:migrations:new:
     desc: Creates a new migration file
@@ -97,11 +102,15 @@ tasks:
 
   smoketest:
     desc: Run the smoke test
-    dotenv: [ env/.smoketest.env ]
+    env:
+      GREENLIGHT_DB_DSN: postgres://postgres:postgres@localhost:5432/{{.SMOKETEST_DB_NAME}}?sslmode=disable
     cmds:
-      - defer: go run ./cmd/db teardown
-      - go run ./cmd/db setup
+      - defer: PGPASSWORD=postgres psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS {{.SMOKETEST_DB_NAME}};"
+      - defer: echo "Cleaning up the database {{.SMOKETEST_DB_NAME}}"
+      - PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE {{.SMOKETEST_DB_NAME}};"
+      - echo "Running migrations using $GREENLIGHT_DB_DSN"
       - migrate -path ./migrations -database $GREENLIGHT_DB_DSN up
+      - echo "Running smoke test.."
       - ./smoke_test.sh
 
   test:
