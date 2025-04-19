@@ -15,6 +15,9 @@ cleanup() {
 # Build the Go binary
 go build -o ./bin/api ./cmd/api
 
+# Get the version of the binary
+VERSION=$(./bin/api -version | grep -o 'v\S*')
+
 # Start the web server in the background
 ./bin/api &
 
@@ -29,14 +32,6 @@ sleep 2
 
 # Make a GET request to the server and check the response
 RESPONSE=$(curl http://localhost:4000/v1/healthcheck)
-
-# Get the last git commit hash
-VERSION=$(git rev-parse HEAD)
-
-# check if there are any non committed changes
-if [[ $(git status -s) ]]; then
-  VERSION="$VERSION-dirty"
-fi
 
 SUCCESS="false"
 

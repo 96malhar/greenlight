@@ -32,6 +32,10 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 // rateLimit is a middleware function which performs rate limiting using the token bucket algorithm.
 func (app *application) rateLimit(next http.Handler) http.Handler {
+	if !app.config.limiter.enabled {
+		return next
+	}
+
 	type client struct {
 		limiter  *rate.Limiter
 		lastSeen time.Time
@@ -42,7 +46,6 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		clients = make(map[string]*client)
 		rps     = rate.Limit(app.config.limiter.rps)
 		burst   = app.config.limiter.burst
-		enabled = app.config.limiter.enabled
 	)
 
 	// background routine to remove old entries from the clients map once every minute.
@@ -63,11 +66,6 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !enabled {
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		ip := realip.FromRequest(r)
 
 		mu.Lock()

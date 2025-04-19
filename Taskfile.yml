@@ -73,6 +73,14 @@ tasks:
       - go get -u -t ./...
       - go mod tidy
 
+  install:dependencies:
+    desc: Install dependencies
+    cmds:
+      - echo "Installing dependencies..."
+      - go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
+      - go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - go install gotest.tools/gotestsum@v1.12.1
+
   audit:
     desc: Run quality control audits
     cmds:
